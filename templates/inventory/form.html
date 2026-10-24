@@ -1,0 +1,89 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}
+{% load static assets %}
+{% block title %}{% if editing %}Edit{% else %}Add{% endif %} vehicle{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <a href="{% url 'inventory' %}">← Inventory</a>
+  <h1>{% if editing %}Edit vehicle{% else %}Add vehicle{% endif %}</h1>
+  <p>Save what you know now. You can edit this vehicle later.</p>
+</section>
+<section class="panel">
+  <form method="post" data-unsaved-form data-bound="{{ form.is_bound|yesno:'true,false' }}">
+    {% csrf_token %}
+    {% if form.errors %}
+    <div class="notice" role="alert" tabindex="-1" data-error-summary>
+      <h2>We couldn't save this vehicle.</h2>
+      {{ form.non_field_errors }}
+      <ul>
+      {% for field in form %}{% if field.errors %}
+        <li><a href="#{{ field.id_for_label }}">{{ field.label }}: {{ field.errors|striptags }}</a></li>
+      {% endif %}{% endfor %}
+      </ul>
+      {% if editing %}<a href="{% url 'vehicle_detail' vehicle.pk %}" target="_blank" rel="noopener">Open the latest vehicle in a new tab ↗</a>{% endif %}
+    </div>
+    {% endif %}
+    {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+    {% if duplicate_match_count %}
+    <section class="notice" role="alert" aria-labelledby="duplicate-vin-heading">
+      <h2 id="duplicate-vin-heading">Review matching VIN records</h2>
+      <p>This VIN is already recorded at your dealership. Review the matches first. If you need a separate stock record—for example, a reacquisition—check the box and enter a reason. Existing records will be kept.</p>
+      <ul>
+        {% for match in duplicate_matches %}
+        <li><a href="{% url 'vehicle_detail' match.pk %}"><strong>Stock {{ match.stock_number }}</strong> · {{ match }} · {{ match.get_status_display }}</a></li>
+        {% endfor %}
+      </ul>
+      {% if duplicate_match_count > duplicate_match_display_limit %}<p>Showing {{ duplicate_match_display_limit }} of {{ duplicate_match_count }} matching records. The remaining matches are retained in saved history.</p>{% endif %}
+      <div class="form-grid duplicate-review-fields">
+        {% include 'shared/field.html' with field=form.duplicate_review_acknowledged %}
+        {% include 'shared/field.html' with field=form.duplicate_review_reason %}
+      </div>
+    </section>
+    {% endif %}
+    <fieldset class="form-section">
+      <legend>Vehicle details</legend>
+      <p class="section-help">VIN can be left blank if you don't have it yet.</p>
+      <div class="form-grid">
+        {% include 'shared/field.html' with field=form.stock_number %}
+        {% include 'shared/field.html' with field=form.vin %}
+        {% include 'shared/field.html' with field=form.year %}
+        {% include 'shared/field.html' with field=form.make %}
+        {% include 'shared/field.html' with field=form.model %}
+        {% include 'shared/field.html' with field=form.status %}
+      </div>
+    </fieldset>
+    <fieldset class="form-section">
+      <legend>Title information</legend>
+      <p class="section-help">Use “Not verified” until you've checked the title.</p>
+      <div class="form-grid">
+        {% include 'shared/field.html' with field=form.title_brand %}
+        {% include 'shared/field.html' with field=form.title_received %}
+      </div>
+    </fieldset>
+    <fieldset class="form-section">
+      <legend>Mileage</legend>
+      <p class="section-help">Record the reading and reported status. This does not create a signed odometer disclosure.</p>
+      <div class="form-grid">
+        {% include 'shared/field.html' with field=form.odometer_reading %}
+        {% include 'shared/field.html' with field=form.odometer_unit %}
+        {% include 'shared/field.html' with field=form.odometer_status %}
+      </div>
+    </fieldset>
+    <fieldset class="form-section">
+      <legend>Costs and notes</legend>
+      <p class="section-help">Costs start at $0.00. You can update them later.</p>
+      <div class="form-grid">
+        {% include 'shared/field.html' with field=form.acquisition_cost %}
+        {% include 'shared/field.html' with field=form.recon_cost %}
+        {% include 'shared/field.html' with field=form.notes %}
+      </div>
+    </fieldset>
+    <div class="actions">
+      <button class="button">Save vehicle</button>
+      {% if editing %}<a href="{% url 'vehicle_detail' vehicle.pk %}">Cancel</a>{% else %}<a href="{% url 'inventory' %}">Cancel</a>{% endif %}
+      <span class="muted" aria-live="polite" data-save-status></span>
+    </div>
+  </form>
+</section>
+<script src="{% asset_url 'vehicle-form.js' %}" defer></script>
+{% endblock %}

@@ -1,0 +1,34 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}{% load assets %}
+{% block title %}Draft deals{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset_url 'filters.css' %}"><link rel="stylesheet" href="{% asset_url 'vehicles.css' %}">{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <h1>Draft deals</h1>
+  <p>Find a saved deal and pick up where you left off.</p>
+  {% if member.can_manage_inventory %}<a class="button" href="{% url 'deal_create' %}">+ Start a deal</a>{% endif %}
+</section>
+<section class="panel">
+  {% include 'shared/filter_builder.html' %}
+  <div class="table-wrap" tabindex="0" role="region" aria-label="Draft results">
+    <table>
+      <thead><tr><th scope="col">Draft</th><th scope="col">Vehicle</th><th scope="col">Buyer</th><th scope="col">Draft balance</th><th scope="col">Last saved</th></tr></thead>
+      <tbody>
+        {% for deal in deals %}
+        <tr>
+          <td><a href="{% url 'deal_detail' deal.pk %}">#{{ deal.pk }}</a><small>{{ deal.get_deal_type_display }}</small></td>
+          <td><a class="vehicle-identity" href="{% url 'deal_detail' deal.pk %}">{% include 'inventory/vehicle_photo.html' with vehicle=deal.vehicle %}<span><b>{{ deal.vehicle }}</b><small>Stock {{ deal.vehicle.stock_number }}{% if deal.vehicle.vin %} · VIN …{{ deal.vehicle.vin|slice:'-6:' }}{% endif %}</small></span></a></td>
+          <td><a href="{% url 'customer_detail' deal.buyer_id %}">{{ deal.buyer }}</a>{% if deal.co_buyer %}<small>Co-buyer: <a href="{% url 'customer_detail' deal.co_buyer_id %}">{{ deal.co_buyer }}</a></small>{% endif %}</td>
+          <td>${{ deal.draft_balance|floatformat:2 }}</td>
+          <td><time datetime="{{ deal.updated_at|date:'c' }}">{{ deal.updated_at|date:'M j, Y' }}</time><small>{{ deal.updated_at|date:'g:i A' }}</small></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">{% if query %}No drafts match “{{ query }}”. Try a different name, stock number or VIN.{% else %}No draft deals yet.{% if member.can_manage_inventory %} <a href="{% url 'deal_create' %}">Start a deal</a>.{% endif %}{% endif %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include 'shared/pagination.html' %}
+</section>
+<script defer src="{% asset_url 'filters.js' %}"></script>
+{% endblock %}

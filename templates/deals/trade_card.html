@@ -1,0 +1,16 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+<div class="deal-trade-card">
+{% if active_trade %}
+<h3>{{ active_trade }}</h3><p>{{ active_trade.vin|default:'VIN not recorded' }} · Title: {{ active_trade.get_title_brand_display }}</p>
+<p>Mileage: {% if active_trade.odometer_reading != None %}{{ active_trade.odometer_reading }} · {{ active_trade.get_odometer_unit_display }}{% else %}Not entered{% endif %} · {{ active_trade.get_odometer_status_display }}</p>
+{% if active_trade.lienholder_name %}<p>Lienholder: {{ active_trade.lienholder_name }}{% if active_trade.payoff_good_through %} · Quote good through {{ active_trade.payoff_good_through|date:'M j, Y' }}{% endif %}</p>{% endif %}
+<div class="trade-actions">
+{% if member.can_manage_inventory %}<a href="{% url 'trade_edit' deal.pk %}">Edit trade</a>{% endif %}
+{% if active_trade.inventory_vehicle_id %}<a href="{% url 'vehicle_detail' active_trade.inventory_vehicle_id %}">Inventory · {{ active_trade.inventory_vehicle.stock_number }}</a>{% elif member.can_manage_inventory and trade_intake_enabled %}<a href="{% url 'trade_intake' deal.pk active_trade.pk %}">Add to inventory</a>{% endif %}
+{% if member.can_manage_inventory %}<a href="{% url 'trade_remove' deal.pk active_trade.pk %}">Remove trade</a>{% endif %}
+</div>
+{% else %}
+<p>Add the trade-in vehicle to keep its identity, title and lienholder details with this deal.</p>
+{% if member.can_manage_inventory %}<a href="{% url 'trade_edit' deal.pk %}">+ Add trade-in vehicle</a>{% endif %}
+{% endif %}
+</div>

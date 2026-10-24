@@ -1,0 +1,25 @@
+/* SPDX-License-Identifier: MPL-2.0 */
+.vehicle-identity { display: flex; align-items: center; gap: 13px; color: var(--ink); }
+.vehicle-detail-columns { align-items: start; }
+.vehicle-identity:hover { color: var(--green); text-decoration: none; }
+.vehicle-identity > span:last-child { min-width: 0; }
+.vehicle-identity small { margin-top: 5px; font-size: 11px; color: var(--muted); }
+.vehicle-thumb { display: inline-flex; align-items: center; justify-content: center; width: 88px; height: 60px; flex: 0 0 88px; overflow: hidden; border: 1px solid var(--line); background: #f0f3ec; color: #8c998d; border-radius: 5px; }
+.vehicle-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.vehicle-thumb > span { display: grid; place-items: center; }
+.vehicle-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 16px; }
+.vehicle-gallery > .muted { grid-column: 1 / -1; }
+.vehicle-photo-card { min-width: 0; }
+.vehicle-photo-card img { display: block; width: 100%; aspect-ratio: 16 / 11; object-fit: cover; border: 1px solid var(--line); border-radius: 5px; }
+.vehicle-photo-actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; padding-top: 6px; }
+.vehicle-photo-card form { display: flex; gap: 9px; }
+.vehicle-photo-card button { padding: 5px 0; min-height: 28px; color: var(--green); background: none; border: 0; font-size: 11px; cursor: pointer; }
+.vehicle-upload, .vehicle-hidden { margin-top: 20px; font-size: 12px; }
+.vehicle-upload summary, .vehicle-hidden summary { cursor: pointer; color: var(--green); padding: 8px 0; }
+.vehicle-upload form { max-width: 620px; }
+.vehicle-upload .button { margin-top: 14px; }
+.vehicle-hidden .vehicle-gallery { margin-top: 15px; }
+.deal-vehicle-identity { display: flex; gap: 12px; align-items: center; }
+.deal-vehicle-identity > div { min-width: 0; }
+.deal-vehicle-identity .vehicle-thumb { width: 66px; height: 48px; flex-basis: 66px; }
+@media(max-width:520px) { .vehicle-thumb { width: 66px; height: 48px; flex-basis: 66px; } .vehicle-gallery { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); } }

@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Bug report
+description: Report a reproducible bug using invented records.
+body:
+  - type: markdown
+    attributes:
+      value: "Do not include customer records, contracts, credentials, private screenshots, or vendor captures. Report vulnerabilities through Security → Report a vulnerability."
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Use synthetic records and include the affected task or page.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Revision and setup
+      description: Commit hash, browser, and Docker/local Python where relevant. No secrets.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: This report contains only synthetic examples and no private or customer information.
+          required: true

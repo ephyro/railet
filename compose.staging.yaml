@@ -1,0 +1,56 @@
+# Standalone staging configuration; do NOT merge with compose.yaml.
+name: railet-staging
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: railet
+      POSTGRES_USER: railet
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Generate .env.staging first}
+    volumes:
+      - staging_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U railet -d railet"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [database]
+  web:
+    volumes:
+      - staging_media:/app/private-media
+    build:
+      context: .
+      dockerfile: deploy/staging/Dockerfile
+    restart: unless-stopped
+    environment:
+      DJANGO_SETTINGS_MODULE: railet.staging
+      RAILET_DEBUG: "0"
+      RAILET_SECRET_KEY: ${RAILET_SECRET_KEY:?Generate .env.staging first}
+      RAILET_ALLOWED_HOSTS: localhost
+      POSTGRES_HOST: db
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Generate .env.staging first}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [database, proxy]
+  proxy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8443:443"
+    volumes:
+      - ./deploy/staging/Caddyfile:/etc/caddy/Caddyfile:ro
+      - staging_caddy:/data
+      - staging_caddy_config:/config
+    depends_on: [web]
+    networks: [proxy]
+networks:
+  database:
+    internal: true
+  proxy:
+volumes:
+  staging_db:
+  staging_media:
+  staging_caddy:
+  staging_caddy_config:

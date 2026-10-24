@@ -1,0 +1,6 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+<div class="field">
+  {{ field.label_tag }}{{ field }}
+  {% if field.help_text %}<small id="{{ field.auto_id }}_helptext">{{ field.help_text }}</small>{% endif %}
+  {{ field.errors }}
+</div>

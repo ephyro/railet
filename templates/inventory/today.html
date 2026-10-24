@@ -1,0 +1,19 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<section class="home-heading"><h1>What would you like to do?</h1></section>
+<div class="home-actions" aria-label="Dealership tasks">
+  {% if member.can_manage_inventory %}
+  <a class="home-action" href="{% url 'vehicle_create' %}">
+    <span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m4 11 3-6h10l3 6M3 11h18v7H3zM6 18v3M18 18v3M6 14h2M16 14h2"/></svg></span>
+    <div class="action-copy"><h2>Add a vehicle</h2><p>Save a vehicle and its title information.</p></div><span class="action-arrow" aria-hidden="true">→</span>
+  </a>
+  {% endif %}
+  <a class="home-action" href="{% url 'inventory' %}">
+    <span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></svg></span>
+    <div class="action-copy"><h2>Find a vehicle</h2><p>Look up a vehicle already in your inventory.</p></div><span class="action-arrow" aria-hidden="true">→</span>
+  </a>
+  {% if member.can_manage_inventory %}<a class="home-action" href="{% url 'deal_create' %}"><div class="action-copy"><h2>Start a deal</h2><p>Choose a vehicle and customer, then save a draft.</p></div><span class="action-arrow" aria-hidden="true">→</span></a><a class="home-action" href="{% url 'customer_create' %}"><div class="action-copy"><h2>Add a customer</h2><p>Start with a name. Contact details are optional.</p></div><span class="action-arrow" aria-hidden="true">→</span></a>{% endif %}
+</div>
+{% endblock %}

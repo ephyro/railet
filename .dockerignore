@@ -1,0 +1,15 @@
+DealerCenter*
+.git
+.agents
+.aws
+.codex
+.venv
+.env
+*.sqlite3
+__pycache__
+.env.*
+backups/
+*.qcow2
+*.iso
+.local/
+private-media/

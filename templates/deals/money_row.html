@@ -1,0 +1,6 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+<div class="deal-money-row">
+  <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+  <div class="deal-money-input"><span aria-hidden="true">$</span>{{ field }}</div>
+  {% if field.errors %}<div class="deal-row-error">{{ field.errors }}</div>{% endif %}
+</div>

@@ -1,0 +1,2 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% with cover=vehicle.cover_photo %}<span class="vehicle-thumb">{% if cover %}<img src="{% url 'vehicle_photo_thumbnail' cover.pk %}" alt="{{ vehicle }}, stock {{ vehicle.stock_number }}" loading="lazy" decoding="async">{% else %}<span role="img" aria-label="No vehicle photo"><svg width="28" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="m5 10 2-5h10l2 5M3 10h18v8H3zM6 18v3M18 18v3M6 14h2M16 14h2"/></svg></span>{% endif %}</span>{% endwith %}

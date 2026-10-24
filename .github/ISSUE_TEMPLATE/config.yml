@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MPL-2.0
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and workflow ideas
+    url: https://github.com/ephyro/railet/discussions
+    about: Discuss tasks, design ideas, and collaboration using synthetic examples.
+  - name: Report a security vulnerability privately
+    url: https://github.com/ephyro/railet/security/advisories/new
+    about: Keep exploit details and sensitive information out of public issues.

@@ -1,0 +1,8 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}
+{% block title %}Save view{% endblock %}
+{% block content %}
+<section class="page-heading"><a href="{% url filter_schema.route %}?{{ filter_state.querystring }}">← {{ filter_schema.title }}</a><h1>Save this view</h1><p>Only you can see this saved view. It will show current matching records each time you open it.</p></section>
+<section class="panel"><h2>{{ filter_schema.title }}</h2>{% if filter_state.query %}<p>Search: {{ filter_state.query }}</p>{% endif %}<ul>{% for row in filter_state.rows %}<li>{{ row.summary }}</li>{% empty %}<li>No advanced rules</li>{% endfor %}</ul><p>Sort: {{ filter_state.sort_label }}</p>{% if filter_state.errors %}<div class="notice" role="alert">Correct the filters on the list before saving this view.</div>{% endif %}
+<form method="post">{% csrf_token %}{{ form.non_field_errors }}{{ form.parameters }}{{ form.parameters.errors }}{% include 'shared/field.html' with field=form.name %}<div class="actions"><button class="button" {% if filter_state.errors %}disabled{% endif %}>Save view</button><a href="{% url filter_schema.route %}?{{ filter_state.querystring }}">Cancel</a></div></form></section>
+{% endblock %}

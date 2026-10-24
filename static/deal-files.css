@@ -1,0 +1,60 @@
+/* SPDX-License-Identifier: MPL-2.0 */
+.files-heading { padding-top: 28px; padding-bottom: 17px; }
+.files-heading > a { display: inline-flex; min-height: 28px; align-items: center; }
+.files-heading h1 { margin-top: 9px; }
+.files-demo-notice { margin: 0 0 17px; padding: 14px 17px; border: 1px solid #d8b66f; border-left: 4px solid #9a6b18; border-radius: 6px; background: #fff8e9; }
+.files-demo-notice strong { color: #563b10; font-size: 13px; }
+.files-demo-notice p { margin: 4px 0 0; color: #574c36; font-size: 12px; line-height: 1.55; }
+.files-error { border-left-color: #a84236; background: #fff6f4; }
+.files-error h2 { margin-bottom: 6px; }
+.files-error ul { margin: 8px 0; }
+.files-error p { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
+.files-upload, .files-list { margin-bottom: 15px; }
+.files-upload h2 { margin-bottom: 6px; }
+.files-help { margin: 0 0 17px; color: var(--muted); font-size: 12px; line-height: 1.55; }
+.files-upload-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px 22px; margin-bottom: 18px; }
+.files-upload-fields input[type=file] { max-width: 100%; min-height: 44px; padding: 8px; }
+.files-upload .button { min-width: 160px; }
+.files-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; margin-bottom: 4px; }
+.files-section-heading h2 { margin: 0; }
+.files-section-heading > span { color: var(--muted); font-size: 11px; }
+.file-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; padding: 17px 0; border-top: 1px solid var(--line); }
+.file-summary { min-width: 0; overflow-wrap: anywhere; }
+.file-summary h3 { margin: 0; font-size: 13px; font-weight: 600; }
+.file-summary p { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.file-row-actions { display: flex; justify-content: flex-end; align-items: flex-start; gap: 14px; flex: 0 0 auto; }
+.file-download, .file-state-button { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; }
+.file-download { font-size: 12px; font-weight: 550; }
+.file-state-form { display: flex; align-items: flex-start; flex-wrap: wrap; justify-content: flex-end; gap: 6px 10px; max-width: 390px; }
+.file-archive-disclosure { position: relative; min-width: 155px; margin: 0; }
+.file-archive-disclosure > summary { display: inline-flex; align-items: center; min-height: 36px; padding: 0 7px; color: var(--green); font-size: 12px; cursor: pointer; }
+.file-archive-disclosure[open] { width: min(390px, 44vw); }
+.file-archive-disclosure[open] > summary { margin-bottom: 5px; }
+.file-archive-disclosure[open] .file-state-form { justify-content: flex-start; }
+.file-reason-field { width: 100%; }
+.file-reason-field label { font-size: 11px; }
+.file-reason-field textarea { min-height: 58px; margin-top: 4px; }
+.file-state-button { padding: 6px 10px; border: 1px solid #aeb8ae; border-radius: 5px; background: #fff; color: #38443c; font-size: 11px; font-weight: 550; cursor: pointer; }
+.file-state-button:hover { background: #f3f5f1; }
+.files-empty { margin: 14px 0 3px; color: var(--muted); font-size: 12px; }
+.files-archived { padding: 0 20px; }
+.files-archived > summary { display: flex; align-items: center; gap: 10px; min-height: 54px; cursor: pointer; font-size: 14px; font-weight: 600; }
+.files-archived > summary span { color: var(--muted); font-size: 11px; font-weight: 450; }
+.archived-file-list { padding-bottom: 4px; }
+.archived-file-row { align-items: center; }
+.archived-file-row .file-state-form { min-width: 120px; }
+.files-retention-note { margin: 12px 0 26px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+@media (max-width: 760px) {
+  .files-upload-fields { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .file-row { display: block; }
+  .file-row-actions { justify-content: flex-start; margin-top: 11px; flex-wrap: wrap; }
+  .file-state-form { justify-content: flex-start; }
+  .file-archive-disclosure[open] { width: 100%; }
+  .archived-file-row .file-state-form { margin-top: 10px; }
+}
+@media (max-width: 420px) {
+  .files-upload, .files-list { padding: 17px; }
+  .files-archived { padding: 0 17px; }
+  .file-row-actions { align-items: center; gap: 8px 15px; }
+  .file-state-form { width: 100%; }
+}

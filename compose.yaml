@@ -1,0 +1,41 @@
+# Local development only. Production deployment is intentionally not defined.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: railet
+      POSTGRES_USER: railet
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U railet -d railet"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  web:
+    build: .
+    # Mount only application files; keep private reference captures outside the container.
+    volumes:
+      - ./manage.py:/app/manage.py:ro
+      - ./railet:/app/railet:ro
+      - ./core:/app/core:ro
+      - ./inventory:/app/inventory:ro
+      - ./customers:/app/customers:ro
+      - ./deals:/app/deals:ro
+      - ./documents:/app/documents:ro
+      - ./templates:/app/templates:ro
+      - ./static:/app/static:ro
+      - private_media:/app/private-media
+    environment:
+      RAILET_DEBUG: "1"
+      POSTGRES_HOST: db
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  pgdata:
+  private_media:

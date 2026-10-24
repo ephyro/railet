@@ -1,0 +1,144 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}{% load assets %}
+{% block title %}Draft review · Deal #{{ deal.pk }}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset_url 'deal-review.css' %}">{% endblock %}
+{% block content %}
+<section class="page-heading review-heading">
+  <a href="{% url 'deal_detail' deal.pk %}">← Deal #{{ deal.pk }}</a>
+  <h1>Draft review</h1>
+  <p>Internal completeness review for the saved deal facts and worksheet.</p>
+</section>
+
+<div class="review-gate" role="note" aria-label="Final paperwork status">
+  <strong>Final paperwork and legal or financial verification remain unavailable.</strong>
+  <p>This read-only page is an internal draft review. It does not create a contract, financing schedule, signature, or finalized document.</p>
+</div>
+
+<div class="review-toolbar" aria-label="Deal actions">
+  <a href="{% url 'deal_detail' deal.pk %}">Return to deal worksheet</a>
+  {% if member.can_manage_inventory %}<a href="{% url 'deal_edit' deal.pk %}">Edit deal</a>{% endif %}
+</div>
+
+<div class="review-grid">
+  <section class="panel review-panel" aria-labelledby="review-vehicle-heading">
+    <div class="review-panel-heading">
+      <h2 id="review-vehicle-heading">Vehicle</h2>
+      <a href="{{ review_links.vehicle }}">{% if member.can_manage_inventory %}Edit vehicle{% else %}View vehicle{% endif %}</a>
+    </div>
+    <p class="review-record-name"><a href="{% url 'vehicle_detail' deal.vehicle_id %}">{{ deal.vehicle }}</a></p>
+    <dl class="review-facts">
+      <dt>Stock number</dt><dd>{{ deal.vehicle.stock_number }}</dd>
+      <dt>VIN</dt><dd data-review-field="vehicle-vin">{% if deal.vehicle.vin %}{{ deal.vehicle.vin }}{% else %}Not recorded{% endif %}</dd>
+      <dt>Title brand</dt><dd data-review-field="vehicle-title-brand">{{ deal.vehicle.get_title_brand_display }}</dd>
+      <dt>Title received</dt><dd data-review-field="vehicle-title-received">{% if deal.vehicle.title_received %}Yes{% else %}No{% endif %}</dd>
+      <dt>Reported mileage</dt>
+      <dd data-review-field="vehicle-mileage">
+        {% if deal.vehicle.odometer_reading != None %}{{ deal.vehicle.odometer_reading }}{% else %}Not recorded{% endif %}
+        · {{ deal.vehicle.get_odometer_unit_display }}
+      </dd>
+      <dt>Mileage status</dt><dd data-review-field="vehicle-mileage-status">{{ deal.vehicle.get_odometer_status_display }}</dd>
+    </dl>
+  </section>
+
+  <section class="panel review-panel" aria-labelledby="review-buyer-heading">
+    <div class="review-panel-heading">
+      <h2 id="review-buyer-heading">Buyer</h2>
+      <a href="{{ review_links.buyer }}">{% if member.can_manage_inventory %}Edit buyer{% else %}View buyer{% endif %}</a>
+    </div>
+    <p class="review-record-name"><a href="{% url 'customer_detail' deal.buyer_id %}">{{ deal.buyer }}</a></p>
+    <dl class="review-facts review-contact">
+      <dt>Phone</dt><dd>{% if deal.buyer.phone %}{{ deal.buyer.phone }}{% else %}Not recorded{% endif %}</dd>
+      <dt>Email</dt><dd>{% if deal.buyer.email %}{{ deal.buyer.email }}{% else %}Not recorded{% endif %}</dd>
+    </dl>
+  </section>
+
+  <section class="panel review-panel" aria-labelledby="review-cobuyer-heading">
+    <div class="review-panel-heading">
+      <h2 id="review-cobuyer-heading">Co-buyer</h2>
+      {% if deal.co_buyer %}<a href="{{ review_links.co_buyer }}">{% if member.can_manage_inventory %}Edit co-buyer{% else %}View co-buyer{% endif %}</a>
+      {% elif member.can_manage_inventory %}<a href="{{ review_links.deal }}#buyer">Add co-buyer</a>{% endif %}
+    </div>
+    {% if deal.co_buyer %}
+      <p class="review-record-name"><a href="{% url 'customer_detail' deal.co_buyer_id %}">{{ deal.co_buyer }}</a></p>
+      <dl class="review-facts review-contact">
+        <dt>Phone</dt><dd>{% if deal.co_buyer.phone %}{{ deal.co_buyer.phone }}{% else %}Not recorded{% endif %}</dd>
+        <dt>Email</dt><dd>{% if deal.co_buyer.email %}{{ deal.co_buyer.email }}{% else %}Not recorded{% endif %}</dd>
+      </dl>
+    {% else %}
+      <p class="review-unknown">No co-buyer is assigned to this draft.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel review-panel review-worksheet" aria-labelledby="review-worksheet-heading">
+    <div class="review-panel-heading">
+      <h2 id="review-worksheet-heading">Draft worksheet</h2>
+      <span class="review-type">{{ deal_type_label }}</span>
+    </div>
+    <dl class="review-money-list">
+      {% for label, value in worksheet_rows %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}
+    </dl>
+    <div class="review-balance" data-review-field="worksheet-balance">
+      <span>Draft worksheet balance</span>
+      <strong>{{ worksheet_balance }}</strong>
+    </div>
+    <p class="review-help">This is a worksheet amount from the saved entries. It is not an amount financed, payoff quote, APR, or payment schedule.</p>
+  </section>
+
+  <section class="panel review-panel review-trade" aria-labelledby="review-trade-heading">
+    <div class="review-panel-heading">
+      <h2 id="review-trade-heading">Active trade-in</h2>
+      <a href="{{ review_links.trade }}">{% if member.can_manage_inventory %}{% if active_trade %}Edit trade-in{% else %}Add trade-in{% endif %}{% else %}View deal{% endif %}</a>
+    </div>
+    {% if active_trade %}
+      <p class="review-record-name">{{ active_trade }}</p>
+      <dl class="review-facts">
+        <dt>VIN</dt><dd>{% if active_trade.vin %}{{ active_trade.vin }}{% else %}Not recorded{% endif %}</dd>
+        <dt>Title brand</dt><dd>{{ active_trade.get_title_brand_display }}</dd>
+        <dt>Reported mileage</dt>
+        <dd>{% if active_trade.odometer_reading != None %}{{ active_trade.odometer_reading }}{% else %}Not recorded{% endif %} · {{ active_trade.get_odometer_unit_display }}</dd>
+        <dt>Mileage status</dt><dd>{{ active_trade.get_odometer_status_display }}</dd>
+        <dt>Lienholder / recipient</dt><dd>{% if active_trade.lienholder_name %}{{ active_trade.lienholder_name }}{% else %}Not recorded{% endif %}</dd>
+        <dt>Payoff quote good through</dt><dd>{% if active_trade.payoff_good_through %}{{ active_trade.payoff_good_through|date:'M j, Y' }}{% else %}Not recorded{% endif %}</dd>
+        {% if trade_inventory_is_local %}<dt>Inventory record</dt><dd><a href="{% url 'vehicle_detail' active_trade.inventory_vehicle_id %}">View linked vehicle</a></dd>{% endif %}
+      </dl>
+    {% else %}
+      <p class="review-unknown">No active trade-in record is saved.</p>
+    {% endif %}
+    <p class="review-help">The allowance and estimated payoff above remain worksheet entries. This review does not confirm a payoff or transfer a vehicle.</p>
+  </section>
+
+  {% if deal.deal_type == 'outside' or deal.deal_type == 'bhph' %}
+  <section class="panel review-panel review-financing" aria-labelledby="review-financing-heading">
+    <div class="review-panel-heading">
+      <h2 id="review-financing-heading">Proposed financing</h2>
+      <a href="{{ review_links.proposal }}">{% if member.can_manage_inventory %}Edit proposal{% else %}View deal{% endif %}</a>
+    </div>
+    {% if selected_proposal %}
+      <dl class="review-facts" data-review-proposal="{{ selected_proposal.kind }}">
+        {% for label, value in proposal_rows %}<dt>{{ label }}</dt><dd data-review-field="proposal-{{ forloop.counter }}">{{ value }}</dd>{% endfor %}
+      </dl>
+    {% else %}
+      <p class="review-unknown">No proposal is saved for the selected financing type.</p>
+    {% endif %}
+    <p class="review-help">These are saved proposal fields only. No finance charge, APR, installment amount, or payment schedule is calculated here.</p>
+  </section>
+  {% endif %}
+</div>
+
+<section class="panel review-reminders" aria-labelledby="review-reminders-heading">
+  <div class="review-panel-heading">
+    <div><h2 id="review-reminders-heading">Completeness reminders for human review</h2><p>These reminders only point out blank or unverified facts represented on this page.</p></div>
+  </div>
+  <ul>
+    {% for reminder in reminders %}
+      <li>
+        <div><span class="review-tag">Review</span><strong>{{ reminder.title }}</strong><p>{{ reminder.detail }}</p></div>
+        <a href="{{ reminder.url }}">{{ reminder.action }}</a>
+      </li>
+    {% empty %}
+      <li class="review-none">No blank or unverified fields were detected by this limited review. Check the saved facts against source records.</li>
+    {% endfor %}
+  </ul>
+  <p class="review-help">A recorded value is not independently verified here. This page does not determine legal requirements or whether a deal is ready for paperwork.</p>
+</section>
+{% endblock %}

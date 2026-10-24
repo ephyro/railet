@@ -1,0 +1,14 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}{% load assets %}
+{% block title %}Inventory{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset_url 'filters.css' %}"><link rel="stylesheet" href="{% asset_url 'vehicles.css' %}">{% endblock %}
+{% block content %}
+<section class="page-heading"><h1>Inventory</h1><p>Recognize the vehicle, check its details, and get to work.</p>{% if member.can_manage_inventory %}<a class="button" href="{% url 'vehicle_create' %}">+ Add vehicle</a>{% endif %}</section>
+<div class="inventory-quick-views"><a href="{% url 'inventory' %}">All vehicles</a><a href="?status=available">Available</a><a href="?scope=active">Active inventory</a><a href="?scope=missing-title">Missing titles</a><a href="?filter_field=brand&amp;filter_op=eq&amp;filter_value=rebuilt">Rebuilt</a></div>
+<section class="panel">
+{% include 'shared/filter_builder.html' %}
+<div class="table-wrap" tabindex="0" role="region" aria-label="Inventory results"><table><thead><tr><th scope="col">Vehicle</th><th scope="col">Status</th><th scope="col">Title brand</th><th scope="col">Title received</th><th scope="col">Total investment</th></tr></thead><tbody>
+{% for vehicle in vehicles %}<tr><td><a class="vehicle-identity" href="{% url 'vehicle_detail' vehicle.pk %}">{% include 'inventory/vehicle_photo.html' with vehicle=vehicle %}<span><b>{{ vehicle }}</b><small>Stock {{ vehicle.stock_number }} · {% if vehicle.vin %}VIN {{ vehicle.vin }}{% else %}VIN not recorded{% endif %}</small></span></a></td><td><span class="badge">{{ vehicle.get_status_display }}</span></td><td>{{ vehicle.get_title_brand_display }}</td><td>{{ vehicle.title_received|yesno:'Yes,Missing' }}</td><td>${{ vehicle.total_cost|floatformat:'2g' }}</td></tr>{% empty %}<tr><td colspan="5" class="empty">{% if filter_state.errors %}Correct the filters to show results.{% else %}No vehicles found. Add a vehicle or change your filters.{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% include 'shared/pagination.html' %}</section>
+<script defer src="{% asset_url 'filters.js' %}"></script>
+{% endblock %}

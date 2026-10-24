@@ -1,0 +1,108 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}{% load assets %}
+{% block title %}Deal #{{ deal.pk }}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset_url 'vehicles.css' %}"><link rel="stylesheet" href="{% asset_url 'deal-workspace.css' %}">{% endblock %}
+{% block content %}
+<div class="deal-workspace">
+  <form id="deal-desk" method="post" data-deal-workspace {% if member.can_manage_inventory %}data-unsaved-form data-bound="{{ form.is_bound|yesno:'true,false' }}" data-clean-status="All changes saved"{% endif %}>
+  <section class="deal-heading">
+    <a class="deal-back" href="{% url 'deals' %}">← All drafts</a>
+    <div class="deal-title"><h1>Deal #{{ deal.pk }}</h1><span class="deal-state">Draft</span><div class="deal-toolbar">{% if deal_files_enabled %}<a class="deal-review-link" href="{% url 'deal_files' deal.pk %}">Files</a>{% endif %}<a class="deal-review-link" href="{% url 'deal_review' deal.pk %}">Review deal</a>{% if member.can_manage_inventory %}<span class="deal-save-status" data-save-status aria-live="polite">All changes saved</span><button type="submit" class="button">Save deal</button>{% else %}<span class="deal-save-status">View only</span>{% endif %}</div></div>
+  </section>
+
+  <div class="deal-sheet">
+  <div class="deal-parties">
+    <section class="deal-party" aria-labelledby="deal-vehicle-label">
+      <div class="deal-party-label"><span id="deal-vehicle-label">Vehicle</span>{% if member.can_manage_inventory %}<a href="{% url 'deal_edit' deal.pk %}#vehicle">Change</a>{% endif %}</div>
+      <div class="deal-vehicle-identity">{% include 'inventory/vehicle_photo.html' with vehicle=deal.vehicle %}<div><h2><a href="{% url 'vehicle_detail' deal.vehicle_id %}">{{ deal.vehicle }}</a></h2>
+      <p>Stock {{ deal.vehicle.stock_number }}{% if deal.vehicle.vin %} <span aria-hidden="true">·</span> {{ deal.vehicle.vin }}{% endif %}</p>
+      <span class="deal-title-brand {% if deal.vehicle.title_brand != 'unbranded' %}needs-review{% endif %}">Title: {{ deal.vehicle.get_title_brand_display }}</span></div></div>
+    </section>
+    <section class="deal-party" aria-labelledby="deal-buyer-label">
+      <div class="deal-party-label"><span id="deal-buyer-label">Buyer</span>{% if member.can_manage_inventory %}<a href="{% url 'deal_edit' deal.pk %}#buyer">Change</a>{% endif %}</div>
+      <h2><a href="{% url 'customer_detail' deal.buyer_id %}">{{ deal.buyer }}</a></h2>
+      <p>{% if deal.buyer.phone %}{{ deal.buyer.phone }}{% if deal.buyer.email %} <span aria-hidden="true">·</span> {{ deal.buyer.email }}{% endif %}{% elif deal.buyer.email %}{{ deal.buyer.email }}{% else %}<a href="{% url 'customer_detail' deal.buyer_id %}">View customer</a>{% endif %}</p>
+
+    </section>
+    <section class="deal-party deal-party-co" aria-labelledby="deal-co-label">
+      <div class="deal-party-label"><span id="deal-co-label">Co-buyer</span></div>
+      {% if deal.co_buyer %}<h2><a href="{% url 'customer_detail' deal.co_buyer_id %}">{{ deal.co_buyer }}</a></h2><p>{{ deal.co_buyer.phone|default:deal.co_buyer.email }}</p>{% if member.can_manage_inventory %}<a class="deal-co-action" href="{% url 'deal_edit' deal.pk %}#buyer">Change co-buyer</a>{% endif %}
+      {% elif member.can_manage_inventory %}<a class="deal-add-person" href="{% url 'deal_edit' deal.pk %}#buyer">+ Add co-buyer</a>{% else %}<p>None assigned</p>{% endif %}
+    </section>
+  </div>
+
+  <div class="deal-tabs" data-deal-tabs aria-label="Deal sections">
+    <a href="#deal-structure" data-deal-tab>Structure</a>
+    <a href="#deal-notes" data-deal-tab>Notes</a>
+    <a href="#deal-history" data-deal-tab>History</a>
+  </div>
+    {% csrf_token %}<input type="hidden" name="active_section" value="{{ active_section }}" data-active-section>
+    {% for field in form.hidden_fields %}{{ field }}{{ field.errors }}{% endfor %}
+    {% if form.errors or proposal_errors %}<div class="notice deal-errors" role="alert" tabindex="-1" data-error-summary><b>Check the deal before saving.</b>{{ form.non_field_errors }}{% if conflict %}<p><a href="{% url 'deal_detail' deal.pk %}" target="_blank" rel="noopener">Open the latest saved deal in a new tab</a> to compare without losing these entries.</p>{% endif %}<ul>{% for field in form.visible_fields %}{% if field.errors %}<li><a href="#{{ field.id_for_label }}">{{ field.label }}: {{ field.errors|striptags }}</a></li>{% endif %}{% endfor %}{% for proposal in proposals %}{% for field in proposal.form %}{% if field.errors %}<li><a href="#{{ field.id_for_label }}">{{ proposal.label }} · {{ field.label }}: {{ field.errors|striptags }}</a></li>{% endif %}{% endfor %}{{ proposal.form.non_field_errors }}{% endfor %}</ul></div>{% endif %}
+
+    <div class="deal-layout">
+      <div class="deal-panels">
+      <section id="deal-structure" class="deal-entry" data-deal-panel aria-labelledby="worksheet-heading">
+        <div class="deal-section-heading"><h2 id="worksheet-heading">Deal structure</h2><span>Amount · USD</span></div>
+        <div class="deal-type-row">{% include 'shared/field.html' with field=form.deal_type %}</div>
+        {% include 'deals/money_row.html' with field=form.sale_price %}
+
+        <details class="deal-optional" {% if fees_open %}open{% endif %}>
+          <summary><span>Taxes &amp; fees</span><span data-summary="fees">{% if totals %}${{ totals.fees|floatformat:'2g' }}{% else %}—{% endif %}</span></summary>
+          <p class="deal-group-help">Enter the reviewed amounts manually.</p>
+          {% include 'deals/money_row.html' with field=form.tax %}
+          {% include 'deals/money_row.html' with field=form.title_registration %}
+          {% include 'deals/money_row.html' with field=form.dealer_fee %}
+        </details>
+
+        <details class="deal-optional" {% if trade_open %}open{% endif %}>
+          <summary><span>Trade-in adjustment</span><span data-summary="trade_adjustment">{% if totals %}${{ totals.trade_adjustment|floatformat:'2g' }}{% else %}—{% endif %}</span></summary>
+          {% include 'deals/trade_card.html' %}
+          {% include 'deals/money_row.html' with field=form.trade_allowance %}
+          {% include 'deals/money_row.html' with field=form.trade_payoff %}
+        </details>
+
+        <div class="deal-down-payment">
+          {% include 'deals/money_row.html' with field=form.down_payment %}
+          <p>Saving a planned down payment does not record money received.</p>
+        </div>
+        <div class="deal-structure-total"><span>Draft balance</span><output data-summary="balance">{% if totals %}${{ totals.balance|floatformat:'2g' }}{% else %}—{% endif %}</output></div>
+        {% for proposal in proposals %}
+        <section class="finance-proposal" data-finance-proposal="{{ proposal.kind }}" data-has-errors="{{ proposal.form.errors|yesno:'true,false' }}">
+          <input type="hidden" name="{{ proposal.kind }}-included" value="1">
+          <h3>{{ proposal.label }} terms <span class="muted" data-inactive-proposal>(inactive proposal)</span></h3>
+          <p class="deal-panel-help">Proposed terms only. This does not create a loan or payment schedule. Leave unknown details blank.</p>
+          <div class="proposal-grid">{% for field in proposal.form %}{% include 'shared/field.html' %}{% endfor %}</div>
+        </section>
+        {% endfor %}
+      </section>
+      <section id="deal-notes" class="deal-entry deal-notes" data-deal-panel aria-labelledby="notes-heading">
+        <div class="deal-section-heading"><h2 id="notes-heading">Team notes</h2></div>
+        <p class="deal-panel-help">Keep the details your team needs with this deal.</p>
+        {{ form.notes.label_tag }}{{ form.notes }}{{ form.notes.errors }}
+      </section>
+      <section id="deal-history" class="deal-entry" data-deal-panel aria-labelledby="history-heading">
+        <div class="deal-section-heading"><h2 id="history-heading">Saved history</h2></div>
+        <ol class="deal-history">{% for event in events %}<li><b>{% if event.snapshot.action == 'trade_saved' %}Trade saved{% elif event.snapshot.action == 'trade_removed' %}Trade removed{% elif event.snapshot.action == 'trade_intake' %}Trade added to inventory{% elif event.snapshot.revision == 1 %}Draft started{% else %}Draft updated{% endif %}</b><span>by {{ event.actor.get_username }}{% if event.snapshot.reason %} · {{ event.snapshot.reason }}{% endif %}</span><time datetime="{{ event.created_at|date:'c' }}">{{ event.created_at|date:'M j, Y · g:i A' }}</time></li>{% empty %}<li>No saved history is available.</li>{% endfor %}</ol>
+      </section>
+      </div>
+
+      <section class="deal-summary" aria-labelledby="deal-summary-heading" data-negative="{% if totals.balance < 0 %}true{% else %}false{% endif %}">
+        <h2 id="deal-summary-heading">Deal summary</h2><p class="deal-panel-help" data-type-summary>{{ deal_type_label }}</p>
+        <dl>
+          <dt>Vehicle price</dt><dd data-summary="price">{% if totals %}${{ totals.price|floatformat:'2g' }}{% else %}—{% endif %}</dd>
+          <dt data-summary-row="fees" {% if totals and not totals.fees %}hidden{% endif %}>Taxes &amp; fees</dt><dd data-summary="fees" data-summary-row="fees" {% if totals and not totals.fees %}hidden{% endif %}>{% if totals %}${{ totals.fees|floatformat:'2g' }}{% else %}—{% endif %}</dd>
+          <dt data-summary-row="trade_allowance" {% if totals and not totals.trade_allowance %}hidden{% endif %}>Trade allowance</dt><dd data-summary="trade_allowance" data-summary-row="trade_allowance" {% if totals and not totals.trade_allowance %}hidden{% endif %}>{% if totals %}−${{ totals.trade_allowance|floatformat:'2g' }}{% else %}—{% endif %}</dd>
+          <dt data-summary-row="trade_payoff" {% if totals and not totals.trade_payoff %}hidden{% endif %}>Trade payoff</dt><dd data-summary="trade_payoff" data-summary-row="trade_payoff" {% if totals and not totals.trade_payoff %}hidden{% endif %}>{% if totals %}${{ totals.trade_payoff|floatformat:'2g' }}{% else %}—{% endif %}</dd>
+          <dt>Planned down payment</dt><dd data-summary="down_payment">{% if totals %}{% if totals.down_payment %}−{% endif %}${{ totals.down_payment|floatformat:'2g' }}{% else %}—{% endif %}</dd>
+        </dl>
+        <div class="deal-balance"><span>Draft balance</span><output data-summary="balance" aria-live="polite">{% if totals %}${{ totals.balance|floatformat:'2g' }}{% else %}—{% endif %}</output></div>
+        <p class="deal-summary-help" data-summary-help>{% if totals.balance < 0 %}Check the amounts. The draft balance is below zero.{% elif not totals %}Enter valid amounts to update the estimate.{% else %}Draft estimate. Review taxes and fees before paperwork.{% endif %}</p>
+<p class="deal-summary-saved">Last saved {{ deal.updated_at|date:'M j · g:i A' }}</p>
+      </section>
+    </div>
+  </div>
+  </form>
+</div>
+<script defer src="{% asset_url 'deal-workspace.js' %}"></script>{% if member.can_manage_inventory %}<script defer src="{% asset_url 'vehicle-form.js' %}"></script>{% endif %}
+{% endblock %}

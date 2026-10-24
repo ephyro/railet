@@ -1,0 +1,61 @@
+/* SPDX-License-Identifier: MPL-2.0 */
+.review-heading { padding-top: 30px; padding-bottom: 18px; }
+.review-heading h1 { margin-top: 9px; }
+.review-heading > a { display: inline-flex; align-items: center; min-height: 28px; }
+.review-gate { position: sticky; top: 0; z-index: 4; padding: 14px 17px; border: 1px solid #d8b66f; border-left: 4px solid #9a6b18; border-radius: 6px; background: #fff8e9; box-shadow: 0 3px 10px #202b2710; }
+.review-gate strong { display: block; color: #563b10; font-size: 13px; }
+.review-gate p { margin: 4px 0 0; color: #574c36; font-size: 12px; line-height: 1.55; }
+.review-toolbar { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; margin: 14px 0 18px; }
+.review-toolbar a { display: inline-flex; align-items: center; min-height: 36px; font-size: 12px; font-weight: 550; }
+.review-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 15px; }
+.review-grid > .review-panel { grid-column: span 2; min-width: 0; margin: 0; padding: 20px; }
+.review-grid > .review-worksheet, .review-grid > .review-trade, .review-grid > .review-financing { grid-column: span 3; }
+.review-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 13px; }
+.review-panel-heading h2 { margin: 0; font-size: 15px; line-height: 1.4; }
+.review-panel-heading > a { display: inline-flex; align-items: center; min-height: 28px; flex: 0 0 auto; font-size: 11px; }
+.review-panel-heading > div { min-width: 0; }
+.review-panel-heading > div p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+.review-record-name { margin: 0 0 12px; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.review-record-name a { color: var(--ink); }
+.review-facts { display: grid; grid-template-columns: minmax(105px, .85fr) minmax(0, 1.15fr); gap: 9px 14px; margin: 0; font-size: 12px; }
+.review-facts dt { min-width: 0; color: var(--muted); }
+.review-facts dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.review-contact { grid-template-columns: 55px minmax(0, 1fr); }
+.review-type { display: inline-flex; align-items: center; min-height: 24px; padding: 2px 8px; border: 1px solid #d9e0d9; border-radius: 4px; color: #46584b; background: #f6f8f4; font-size: 11px; }
+.review-money-list { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px 14px; margin: 0; font-size: 12px; }
+.review-money-list dt { color: var(--muted); }
+.review-money-list dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.review-balance { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; border-top: 2px solid var(--line); padding-top: 14px; margin-top: 15px; font-size: 13px; font-weight: 600; }
+.review-balance strong { font-size: 21px; font-variant-numeric: tabular-nums; text-align: right; overflow-wrap: anywhere; }
+.review-help { margin: 12px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.review-unknown { margin: 2px 0; color: #6d5730; font-size: 12px; }
+.review-reminders { margin-top: 16px; padding: 20px; }
+.review-reminders .review-panel-heading { margin-bottom: 8px; }
+.review-reminders ul { list-style: none; margin: 0; padding: 0; }
+.review-reminders li { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; padding: 13px 0; border-top: 1px solid var(--line); }
+.review-reminders li > div { min-width: 0; }
+.review-reminders li strong { font-size: 12px; font-weight: 600; }
+.review-reminders li p { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+.review-reminders li > a { display: inline-flex; align-items: center; flex: 0 0 auto; min-height: 30px; font-size: 11px; }
+.review-tag { display: inline-flex; align-items: center; min-height: 22px; margin: 0 8px 4px 0; padding: 1px 7px; border: 1px solid #d7b772; border-radius: 4px; color: #65480e; background: #fff8e9; font-size: 10px; font-weight: 650; }
+.review-reminders .review-none { color: var(--muted); font-size: 12px; }
+@media (max-width: 1050px) {
+  .review-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .review-grid > .review-panel { grid-column: span 1; }
+  .review-grid > .review-worksheet, .review-grid > .review-trade, .review-grid > .review-financing { grid-column: span 1; }
+}
+@media (max-width: 700px) {
+  .review-heading { padding-top: 24px; }
+  .review-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .review-grid > .review-panel { grid-column: 1; padding: 18px; }
+  .review-gate { top: 0; }
+}
+@media (max-width: 420px) {
+  .review-reminders { padding: 17px; }
+  .review-reminders li { display: block; }
+  .review-reminders li > a { margin-top: 7px; }
+  .review-facts { grid-template-columns: minmax(95px, .8fr) minmax(0, 1.2fr); gap: 8px 10px; }
+}
+/* Keep currency intact; let the label and amount occupy separate lines when needed. */
+.review-balance { flex-wrap: wrap; }
+.review-balance strong { white-space: nowrap; margin-left: auto; }

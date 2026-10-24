@@ -1,0 +1,13 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}{% load assets %}
+{% block title %}{% if removing %}Remove trade{% else %}Add trade to inventory{% endif %}{% endblock %}
+{% block content %}
+<section class="page-heading"><a href="{% url 'deal_detail' deal.pk %}#deal-structure">← Deal #{{ deal.pk }}</a><h1>{% if removing %}Remove this trade?{% else %}Add trade to inventory{% endif %}</h1></section>
+<section class="panel"><h2>{{ trade }}</h2><p>{{ trade.vin|default:'VIN not recorded' }} · Title: {{ trade.get_title_brand_display }}</p><p>Mileage: {% if trade.odometer_reading != None %}{{ trade.odometer_reading }} · {{ trade.get_odometer_unit_display }}{% else %}Not entered{% endif %} · {{ trade.get_odometer_status_display }}</p>
+{% if removing %}<p>The trade record and its history will be retained. Its allowance and estimated payoff will be cleared from this draft.</p>{% if trade.inventory_vehicle_id %}<p><a href="{% url 'vehicle_detail' trade.inventory_vehicle_id %}">The inventory vehicle</a> will remain in inventory.</p>{% endif %}
+<dl><dt>Allowance to clear</dt><dd>${{ deal.trade_allowance|floatformat:'2g' }}</dd><dt>Estimated payoff to clear</dt><dd>${{ deal.trade_payoff|floatformat:'2g' }}</dd><dt>Draft balance after removal</dt><dd>${{ balance_after|floatformat:'2g' }}</dd></dl>
+{% else %}<p class="notice">Development rehearsal · synthetic data only. This creates an inventory record with status Acquired. It does not transfer title, release a lien, finalize the deal or post money.</p><p>Vehicle details above will be copied once. The trade keeps its original identity and a link to the new inventory record.</p><p>Proposed allowance: ${{ deal.trade_allowance|floatformat:'2g' }} · Estimated payoff: ${{ deal.trade_payoff|floatformat:'2g' }}. Neither determines the inventory cost automatically.</p><p><a href="{% url 'trade_edit' deal.pk %}">Review or correct the trade details first</a></p>
+{% endif %}
+<form method="post" data-unsaved-form data-bound="{{ form.is_bound|yesno:'true,false' }}">{% csrf_token %}{% include 'deals/trade_errors.html' %}{% for field in form.hidden_fields %}{{ field }}{{ field.errors }}{% endfor %}<div class="form-grid">{% for field in form.visible_fields %}{% include 'shared/field.html' %}{% endfor %}</div><div class="actions"><button class="button">{% if removing %}Remove trade from draft{% else %}Add to inventory{% endif %}</button><a href="{% url 'deal_detail' deal.pk %}#deal-structure">Cancel</a><span class="muted" data-save-status aria-live="polite"></span></div></form></section>
+<script defer src="{% asset_url 'vehicle-form.js' %}"></script>
+{% endblock %}

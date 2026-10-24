@@ -1,0 +1,13 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% if page_obj.paginator.count %}
+<div class="result-footer">
+  <p class="muted">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</p>
+  {% if page_obj.has_other_pages %}
+  <div class="pagination" role="navigation" aria-label="Result pages">
+    {% if page_obj.has_previous %}<a href="?{% if pagination_query %}{{ pagination_query }}{% else %}q={{ query|urlencode }}{% endif %}&amp;page={{ page_obj.previous_page_number }}" aria-label="Previous page">← Previous</a>{% endif %}
+    <span aria-current="page">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<a href="?{% if pagination_query %}{{ pagination_query }}{% else %}q={{ query|urlencode }}{% endif %}&amp;page={{ page_obj.next_page_number }}" aria-label="Next page">Next →</a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}

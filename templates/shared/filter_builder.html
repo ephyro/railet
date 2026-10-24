@@ -1,0 +1,34 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% with filter_instance=filter_instance|default:filter_schema.resource %}
+<div class="filter-component">
+  <div class="filter-view-bar">
+    <details class="filter-saved"><summary>{% if selected_view %}{{ selected_view.name }}{% else %}Saved views{% endif %}</summary>
+      <ul>{% for view in saved_views %}<li><a href="?view={{ view.pk }}">{{ view.name }}</a><form method="post" action="{% url 'saved_view_delete' view.pk %}">{% csrf_token %}<button type="submit" class="quiet" aria-label="Remove saved view {{ view.name }}">Remove</button></form></li>{% empty %}<li>Save a filter setup to return to it later.</li>{% endfor %}</ul>
+    </details>
+    {% if quick_filter_label %}<span class="filter-preset-label">{{ quick_filter_label }}</span>{% endif %}
+    <button type="submit" class="filter-save-link" form="filters-{{ filter_instance }}" formaction="{% url 'saved_view_create' filter_schema.resource %}" formmethod="get" data-save-view>Save this view</button>
+  </div>
+  <form id="filters-{{ filter_instance }}" method="get" data-filter-builder>
+    {% for key,value in filter_state.extra.items %}{% if value %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endif %}{% endfor %}
+    <div class="filter-search-row"><label for="filter-search-{{ filter_instance }}">Search {{ filter_schema.title|lower }}<input id="filter-search-{{ filter_instance }}" type="search" name="q" maxlength="200" value="{{ filter_state.query }}" placeholder="{{ filter_schema.search_hint }}"></label><button class="button" type="submit">Search</button><a href="{% url filter_schema.route %}">Reset</a></div>
+    {% if filter_state.rows %}<div class="filter-applied"><p>Match {{ filter_state.match }}:</p><ul>{% for row in filter_state.rows %}<li><a href="?{{ row.remove_query }}" aria-label="Remove rule: {{ row.summary }}"><span>{{ row.summary }}</span><span aria-hidden="true">×</span></a></li>{% endfor %}</ul></div>{% endif %}
+    {% if filter_state.sort != filter_schema.default_sort %}<p class="filter-sort-summary">Sorted by {{ filter_state.sort_label|lower }}</p>{% endif %}
+    <details class="filter-builder-options" {% if filter_state.errors %}open{% endif %}>
+      <summary>Filters &amp; sorting{% if filter_state.rows %} · {{ filter_state.rows|length }} rule{{ filter_state.rows|length|pluralize }}{% endif %}</summary>
+      <div class="filter-rule-settings"><label>Match<select name="match"><option value="all" {% if filter_state.match == 'all' %}selected{% endif %}>All of these rules</option><option value="any" {% if filter_state.match == 'any' %}selected{% endif %}>Any of these rules</option></select></label><label>Sort by<select name="sort">{% for key,sort in filter_schema.sorts.items %}<option value="{{ key }}" {% if filter_state.sort == key %}selected{% endif %}>{{ sort.0 }}</option>{% endfor %}</select></label></div>
+      {% if filter_state.errors %}<div class="filter-errors" role="alert"><b>Check these filters</b><ul>{% for error in filter_state.errors %}<li>{{ error }}</li>{% endfor %}</ul><p>Results are hidden until these rules are corrected.</p></div>{% endif %}
+      <div class="filter-rules" data-filter-rules>{% for row in filter_state.render_rows %}<div class="filter-rule" data-filter-rule>
+        <label><span>Field</span><select name="filter_field" data-rule-field><option value="">Choose a field</option>{% for field in filter_schema.fields %}<option value="{{ field.key }}" {% if row.field == field.key %}selected{% endif %}>{{ field.label }}</option>{% endfor %}</select></label>
+        <label><span>Comparison</span><select name="filter_op" data-rule-op>{% for key,label in row.operators %}<option value="{{ key }}" {% if row.op == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label data-rule-value-label><span>Value</span><span data-rule-value>{% if row.choices %}<select name="filter_value"><option value="">Choose a value</option>{% for key,label in row.choices %}<option value="{{ key }}" {% if row.value == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>{% else %}<input name="filter_value" maxlength="200" value="{{ row.value }}" {% if row.spec.kind == 'date' %}type="date"{% else %}type="text"{% endif %}>{% endif %}</span></label>
+        <label data-rule-upper-label {% if row.op != 'between' %}hidden{% endif %}><span>Through</span><input name="filter_to" maxlength="200" value="{{ row.upper }}" {% if row.spec.kind == 'date' %}type="date"{% else %}type="text"{% endif %}></label>
+        <button type="button" class="filter-remove" data-remove-rule hidden aria-label="Remove this filter rule">×</button>
+      </div>{% endfor %}</div>
+      <div class="filter-rule-actions"><button type="button" data-add-rule hidden>+ Add rule</button><button class="button" type="submit">Apply filters</button></div>
+      <noscript><p>Use the row above for a rule, or clear its field and values to remove it.</p></noscript>
+    </details>
+    {% with script_id='filter-schema-'|add:filter_instance %}{{ filter_state.metadata|json_script:script_id }}{% endwith %}
+  </form>
+</div>
+
+{% endwith %}

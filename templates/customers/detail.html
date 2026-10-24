@@ -1,0 +1,6 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}{% block title %}{{ customer }}{% endblock %}{% block content %}
+<section class="page-heading"><a href="{% url 'customers' %}">← Customers</a><h1>{{ customer }}</h1>{% if member.can_manage_inventory %}<div class="heading-actions"><a class="button" href="{% url 'deal_create' %}?buyer={{ customer.pk }}">Start a deal</a><a class="text-action" href="{% url 'customer_edit' customer.pk %}">Edit customer</a></div>{% endif %}</section>
+<section class="panel"><dl><dt>Phone</dt><dd>{{ customer.phone|default:'Not provided' }}</dd><dt>Email</dt><dd>{{ customer.email|default:'Not provided' }}</dd></dl></section>
+<section class="panel"><h2>Draft deals</h2>{% for deal in drafts %}<p><a href="{% url 'deal_detail' deal.pk %}">Draft #{{ deal.pk }} · {{ deal.vehicle }}</a></p>{% empty %}<p>No draft deals yet.</p>{% endfor %}</section>
+<section class="panel"><h2>Change history</h2>{% for event in events %}<div class="activity">{{ event.actor.get_username }} · {{ event.created_at|date:'M j, Y · g:i A' }}<details><summary>View saved details</summary>{% for label,value in event.changes.fields.items %}<p>{{ label }}: {{ value|default:'—' }}</p>{% endfor %}</details></div>{% endfor %}</section>{% endblock %}

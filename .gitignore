@@ -1,0 +1,35 @@
+.venv/
+__pycache__/
+*.py[cod]
+.env
+*.sqlite3
+staticfiles/
+media/
+private-media/
+DealerCenter - Home.html
+DealerCenter - Home_files/
+.env.*
+!.env.example
+backups/
+*.qcow2
+*.iso
+.local/
+
+# Local agent configuration, credentials, diagnostics, and working artifacts
+.agents/
+.codex/
+.aws/
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+*.pem
+*.key
+id_ed25519*
+id_rsa*
+*.log
+*.dump
+*.sql
+Removed
+b23aaa06a88a
+facd9c42f190

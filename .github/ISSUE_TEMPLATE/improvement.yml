@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Focused improvement
+description: Describe a specific dealership task or scoped technical improvement.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What task needs to be easier or more reliable?
+      description: Explain the problem with an invented example; do not attach private data.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What would a successful change look like?
+      description: Include accessibility, security, or record integrity concerns where relevant.
+    validations:
+      required: true

@@ -1,0 +1,104 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}{% load assets %}
+{% block title %}Supporting files · Deal #{{ deal.pk }}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset_url 'deal-files.css' %}">{% endblock %}
+{% block content %}
+<section class="page-heading files-heading">
+  <a href="{% url 'deal_detail' deal.pk %}">← Deal #{{ deal.pk }}</a>
+  <h1>Supporting files</h1>
+  <p>Files stay with this draft deal. They are not a finalized transaction snapshot.</p>
+</section>
+
+<div class="files-demo-notice" role="note">
+  <strong>Synthetic development only</strong>
+  <p>Use synthetic PDFs here. These files are not generated forms, signatures, legal review, or verification of any document.</p>
+</div>
+
+{% if upload_form.errors %}
+<div class="notice files-error" role="alert" tabindex="-1" data-error-summary>
+  <h2>Review this upload</h2>
+  {{ upload_form.non_field_errors }}
+  <ul>
+    {% for field in upload_form %}{% if field.errors %}<li><a href="#{{ field.id_for_label }}">{{ field.label }}: {{ field.errors|striptags }}</a></li>{% endif %}{% endfor %}
+  </ul>
+  <p>Your title and submission key are retained. Browsers cannot refill file inputs, so choose the PDF again after an error.</p>
+  {% if upload_form.upload_key_conflict %}<p><a href="{% url 'deal_files' deal.pk %}">Start a fresh upload with a new submission key</a>, then choose the PDF again.</p>{% endif %}
+</div>
+{% endif %}
+
+{% if action_form and action_form.errors %}
+<div class="notice files-error" role="alert" tabindex="-1" data-error-summary>
+  <h2>Review this file action</h2>
+  {{ action_form.non_field_errors }}
+  <ul>{% for field in action_form %}{% if field.errors %}<li><a href="#{{ field.id_for_label }}">{{ field.label }}: {{ field.errors|striptags }}</a></li>{% endif %}{% endfor %}</ul>
+</div>
+{% endif %}
+
+{% if member.can_manage_inventory %}
+<section class="panel files-upload" aria-labelledby="files-upload-heading">
+  <h2 id="files-upload-heading">Add a supporting PDF</h2>
+  <p class="files-help">One PDF, up to 8 MiB. PDFs are stored as uploaded; they are not scanned or verified.</p>
+  <form method="post" enctype="multipart/form-data" data-unsaved-form data-bound="{{ upload_form.is_bound|yesno:'true,false' }}">
+    {% csrf_token %}
+    {{ upload_form.upload_key }}
+    <div class="files-upload-fields">
+      {% include 'shared/field.html' with field=upload_form.title %}
+      {% include 'shared/field.html' with field=upload_form.pdf_file %}
+    </div>
+    <button class="button" type="submit">Add PDF to draft</button>
+  </form>
+</section>
+{% endif %}
+
+<section class="panel files-list" aria-labelledby="active-files-heading">
+  <div class="files-section-heading"><h2 id="active-files-heading">Active files</h2><span>{{ active_files|length }} active</span></div>
+  {% for row in active_files %}
+  <article class="file-row">
+    <div class="file-summary">
+      <h3>{{ row.file.title }}</h3>
+      <p>{{ row.file.byte_size|filesizeformat }} · Added {{ row.file.created_at|date:'M j, Y · g:i A' }} by {{ row.file.created_by.get_full_name|default:row.file.created_by.get_username }}</p>
+    </div>
+    <div class="file-row-actions">
+      <a class="file-download" href="{% url 'deal_file_download' deal.pk row.file.pk %}">Download PDF</a>
+      {% if member.can_manage_inventory %}
+      <details class="file-archive-disclosure" {% if row.archive_form.errors %}open{% endif %}>
+        <summary>Archive options</summary>
+        <form method="post" action="{% url 'deal_file_action' deal.pk row.file.pk %}" class="file-state-form">
+          {% csrf_token %}{{ row.archive_form.action }}
+          <div class="file-reason-field">{% include 'shared/field.html' with field=row.archive_form.reason %}</div>
+          <button class="file-state-button" type="submit">Archive file</button>
+        </form>
+      </details>
+      {% endif %}
+    </div>
+  </article>
+  {% empty %}<p class="files-empty">No active files are attached to this draft.</p>{% endfor %}
+</section>
+
+{% if member.can_manage_inventory %}
+<details class="panel files-archived" {% if archived_files %}data-has-archived="true"{% endif %}>
+  <summary>Archived files <span>{{ archived_files|length }}</span></summary>
+  <div class="archived-file-list">
+    {% for row in archived_files %}
+    <article class="file-row archived-file-row">
+      <div class="file-summary">
+        <h3>{{ row.file.title }}</h3>
+        <p>{{ row.file.byte_size|filesizeformat }} · Added {{ row.file.created_at|date:'M j, Y · g:i A' }} by {{ row.file.created_by.get_full_name|default:row.file.created_by.get_username }}</p>
+        <p>Archived {{ row.file.archived_at|date:'M j, Y · g:i A' }}{% if row.archive_event.reason %} · Reason: {{ row.archive_event.reason }}{% endif %}</p>
+      </div>
+      <div class="file-row-actions">
+        <a class="file-download" href="{% url 'deal_file_download' deal.pk row.file.pk %}">Download PDF</a>
+        <form method="post" action="{% url 'deal_file_action' deal.pk row.file.pk %}" class="file-state-form">
+          {% csrf_token %}{{ row.restore_form.action }}
+          <button class="file-state-button" type="submit">Restore file</button>
+        </form>
+      </div>
+    </article>
+    {% empty %}<p class="files-empty">There are no archived files.</p>{% endfor %}
+  </div>
+</details>
+{% endif %}
+
+<p class="files-retention-note">Archiving keeps the original bytes and history. It does not remove the file or free this draft's retained-file quota.</p>
+<script src="{% asset_url 'vehicle-form.js' %}" defer></script>
+{% endblock %}

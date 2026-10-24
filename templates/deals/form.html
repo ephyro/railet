@@ -1,0 +1,16 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}{% load assets %}{% block title %}{% if editing %}Edit draft{% else %}Start a deal{% endif %}{% endblock %}{% block content %}
+<section class="page-heading"><a href="{% url 'deals' %}">← Draft deals</a><h1>{% if editing %}Edit draft #{{ deal.pk }}{% else %}Start a deal{% endif %}</h1><p>{% if editing %}Update the draft details. Each save is recorded in its history.{% else %}Choose a vehicle and buyer. You can add amounts later.{% endif %}</p></section>
+<section class="panel"><form method="post" data-unsaved-form data-bound="{{ form.is_bound|yesno:'true,false' }}">{% csrf_token %}
+{% if form.errors or new_customer.errors %}<div class="notice" role="alert" tabindex="-1" data-error-summary>We couldn't save this draft. Check the details below; your entries have been kept.{{ form.non_field_errors }}</div>{% endif %}
+{% for field in form.hidden_fields %}{{ field }}{{ field.errors }}{% endfor %}
+{% include 'shared/field.html' with field=form.deal_type %}
+<fieldset class="form-section" id="vehicle"><legend>Vehicle</legend>{% include 'shared/field.html' with field=form.vehicle %}</fieldset>
+<fieldset class="form-section" id="buyer"><legend>Buyer</legend><div class="customer-mode">{{ form.customer_mode }}{{ form.customer_mode.errors }}</div>
+<div data-customer-existing {% if mode == 'new' %}hidden{% endif %}>{% include 'shared/field.html' with field=form.buyer %}</div>
+<div data-customer-new {% if mode != 'new' %}hidden{% endif %}><p class="section-help">Saved once as a customer and linked to this deal.</p>{% include 'customers/fields.html' with form=new_customer inline=True %}</div>
+{% include 'shared/field.html' with field=form.co_buyer %}</fieldset>
+<details class="worksheet-disclosure" {% if has_worksheet_details %}open{% endif %}><summary>Add price and other draft amounts <span class="muted">(optional)</span></summary><p class="section-help">You can save the vehicle and buyer first, then add amounts later. Enter known values only. Taxes and fees are not calculated or legally validated here. A planned down payment does not record money received.</p><div class="form-grid">
+{% include 'shared/field.html' with field=form.sale_price %}{% include 'shared/field.html' with field=form.tax %}{% include 'shared/field.html' with field=form.title_registration %}{% include 'shared/field.html' with field=form.dealer_fee %}{% include 'shared/field.html' with field=form.trade_allowance %}{% include 'shared/field.html' with field=form.trade_payoff %}{% include 'shared/field.html' with field=form.down_payment %}{% include 'shared/field.html' with field=form.notes %}</div></details>
+<div class="actions"><button class="button">{% if editing %}Save changes{% else %}Save draft deal{% endif %}</button><a href="{% url 'deals' %}">Cancel</a><span class="muted" data-save-status aria-live="polite"></span></div>
+</form></section><script defer src="{% asset_url 'deal-form.js' %}"></script><script defer src="{% asset_url 'vehicle-form.js' %}"></script>{% endblock %}
