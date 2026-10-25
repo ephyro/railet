@@ -23,9 +23,10 @@ def customer_list(request):
 
 @member_view
 def customer_detail(request, pk):
+    from finance.account_services import customer_accounts
     customer = get_object_or_404(records(request), pk=pk)
     drafts = (customer.buyer_drafts.filter(dealership=request.member.dealership) | customer.co_buyer_drafts.filter(dealership=request.member.dealership)).select_related("vehicle").distinct()
-    return render(request, "customers/detail.html", context(request, customer=customer, drafts=drafts, events=customer.events.select_related("actor")[:20]))
+    return render(request, "customers/detail.html", context(request, customer=customer, drafts=drafts, accounts=customer_accounts(dealership_id=request.member.dealership_id, customer_id=customer.pk)[:20], events=customer.events.select_related("actor")[:20]))
 
 def editor(request, pk=None):
     require_editor(request)

@@ -43,8 +43,10 @@ Replace `inventory` with the changed app. The demo command refuses to change an 
 
 ## Modules and checks
 
-`core` owns dealerships, memberships, filters, personal views, and inventory/customer audit events. `inventory`, `customers`, `deals`, and `documents` own their respective records and expose explicit interfaces. Draft deal events retain versioned snapshots. No microservices, task queue, frontend framework, or external CDN is needed for the current slice.
+`core` owns dealerships, memberships, filters, personal views, and inventory/customer audit events. `feedback` owns private local workflow reports and their preview/confirmation flow. `inventory`, `customers`, `deals`, and `documents` own their respective records and expose explicit interfaces. Draft deal events retain versioned snapshots. No microservices, task queue, frontend framework, or external CDN is needed for the current slice.
 
-The last full development-VM PostgreSQL run before initial publication passed 153 tests on October 24, 2026, including authorization, isolation, rollback, retries, and concurrency cases. Firefox developer checks exercised selected workflows and responsive layouts. These are developer checks, not dealership staff validation, certification, or production acceptance. The GitHub Actions run reports its own results separately.
+The pre-publication development-VM PostgreSQL run passed 153 tests on October 24, 2026, including authorization, isolation, rollback, retries, and concurrency cases. Firefox developer checks exercised selected workflows and responsive layouts. These are developer checks, not dealership staff validation, certification, or production acceptance. The GitHub Actions run reports its own results separately.
 
 See [customers/deals](CUSTOMERS_AND_DEALS.md), [photos/filters](PHOTOS_AND_FILTERS.md), [financing proposals](DEAL_TYPES_AND_TERMS.md), [trades](TRADE_INS.md), [review](DEAL_REVIEW.md), [VIN review](DUPLICATE_VIN_REVIEW.md), and [supporting PDFs](DEAL_FILES.md) for implementation boundaries and remaining gates.
+
+Current integration follow-up: a separate local PostgreSQL 17.11 instance passed all 237 current tests without skips. See [POSTGRES_INTEGRATION.md](POSTGRES_INTEGRATION.md) for the helper, migrated schema, browser/restore checks and the distinction from the original offline VM.

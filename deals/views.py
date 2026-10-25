@@ -6,6 +6,7 @@ from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
 from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404, redirect, render
+from django.http import HttpResponse
 from django.urls import reverse
 from core.access import member_view, context, require_editor
 from customers.forms import CustomerForm
@@ -28,8 +29,11 @@ def deal_list(request):
     state = filters["filter_state"]
     query = state.query
     drafts = state.apply(search_drafts(request.member.dealership, query)).select_related("vehicle", "buyer", "co_buyer").prefetch_related(Prefetch("vehicle__photos", queryset=VehiclePhoto.objects.filter(archived_at__isnull=True).order_by("-is_primary", "pk"), to_attr="visible_photos"))
+    scope = state.extra.get("scope") or "active"
+    if scope != "all":
+        drafts = drafts.filter(archived_at__isnull=scope == "active")
     page = Paginator(drafts, 25).get_page(request.GET.get("page"))
-    return render(request, "deals/list.html", context(request, **filters, deals=page, page_obj=page, query=query))
+    return render(request, "deals/list.html", context(request, **filters, deals=page, page_obj=page, query=query, draft_scope=scope))
 
 @member_view
 def deal_detail(request, pk):
@@ -43,9 +47,11 @@ def deal_detail(request, pk):
         choices = records(request)
         choices = choices.select_for_update() if request.method == "POST" else choices.select_related("vehicle", "buyer", "co_buyer")
         deal = get_object_or_404(choices, pk=pk)
+        if request.method == "POST" and deal.archived_at:
+            return render(request, "deals/archived_blocked.html", context(request, deal=deal), status=409)
         form = DraftWorksheetForm(
             request.POST if request.method == "POST" else None,
-            instance=deal, read_only=not request.member.can_manage_inventory,
+            instance=deal, read_only=not request.member.can_manage_inventory or bool(deal.archived_at),
         )
         existing = {proposal.kind: proposal for proposal in deal.finance_proposals.all()}
         proposals = []
@@ -54,7 +60,7 @@ def deal_detail(request, pk):
             proposal_form = DraftFinanceProposalForm(
                 request.POST if submitted else None, prefix=kind,
                 instance=existing.get(kind) or DraftFinanceProposal(deal=deal, kind=kind),
-                read_only=not request.member.can_manage_inventory,
+                read_only=not request.member.can_manage_inventory or bool(deal.archived_at),
             )
             proposals.append({"kind": kind, "label": DealType(kind).label, "form": proposal_form})
         if request.method == "POST":
@@ -82,8 +88,8 @@ def deal_detail(request, pk):
     totals = draft_totals(amounts) if all(value is not None for value in amounts.values()) else None
     fee_fields, trade_fields = ("tax", "title_registration", "dealer_fee"), ("trade_allowance", "trade_payoff")
     return render(request, "deals/detail.html", context(
-        request, active_trade=deal.trades.filter(archived_at__isnull=True).select_related("inventory_vehicle").first(), trade_intake_enabled=settings.TRADE_INTAKE_DEMO_ENABLED, deal_files_enabled=settings.DEAL_FILES_DEMO_ENABLED,
-        deal=deal, form=form, proposals=proposals, proposal_errors=any(item["form"].errors for item in proposals), deal_type_label=dict(DealType.choices).get(form["deal_type"].value(), "Not chosen"), events=events, totals=totals, conflict=status == 409, active_section=active_section,
+        request, active_trade=deal.trades.filter(archived_at__isnull=True).select_related("inventory_vehicle").first(), trade_intake_enabled=settings.TRADE_INTAKE_DEMO_ENABLED, demo_packets_enabled=settings.DEMO_PACKETS_ENABLED, deal_files_enabled=settings.DEAL_FILES_DEMO_ENABLED,
+        deal=deal, deal_editable=request.member.can_manage_inventory and not deal.archived_at, form=form, proposals=proposals, proposal_errors=any(item["form"].errors for item in proposals), deal_type_label=dict(DealType.choices).get(form["deal_type"].value(), "Not chosen"), events=events, totals=totals, conflict=status == 409, active_section=active_section,
         fees_open=any(form[name].errors or amounts[name] for name in fee_fields),
         trade_open=deal.trades.filter(archived_at__isnull=True).exists() or any(form[name].errors or amounts[name] for name in trade_fields),
     ), status=status)
@@ -96,6 +102,8 @@ def editor(request, pk=None):
     require_editor(request)
     with transaction.atomic():
         deal = get_object_or_404(records(request).select_for_update(), pk=pk) if pk else DraftDeal(dealership=request.member.dealership)
+        if pk and deal.archived_at:
+            return render(request, "deals/archived_blocked.html", context(request, deal=deal), status=409)
         posted = request.POST if request.method == "POST" else None
         form = DraftDealForm(posted, instance=deal, dealership=request.member.dealership)
         if not pk and request.method == "GET":

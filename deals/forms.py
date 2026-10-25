@@ -29,6 +29,7 @@ class DraftFinanceProposalForm(forms.ModelForm):
         model = DraftFinanceProposal
         fields = PROPOSAL_FIELDS
         labels = {
+            "interest_method": "Proposed interest method",
             "creditor_name": "Proposed creditor / lender",
             "payment_frequency": "Payment frequency",
             "payment_count": "Number of payments",
@@ -36,6 +37,7 @@ class DraftFinanceProposalForm(forms.ModelForm):
             "first_payment_date": "First payment date",
         }
         help_texts = {
+            "interest_method": "Match the proposed contract. This choice does not activate calculations, select a day basis, or change a posted account.",
             "creditor_name": "Verify the legal entity before paperwork.",
             "payment_frequency": "Every 2 weeks and twice a month are different schedules.",
             "annual_contract_rate": "A contract rate is not the APR disclosure.",
@@ -47,6 +49,12 @@ class DraftFinanceProposalForm(forms.ModelForm):
         }
 
     def __init__(self, *args, read_only=False, **kwargs):
+        if args and args[0] is not None:
+            method_key = f"{kwargs.get('prefix')}-interest_method" if kwargs.get('prefix') else 'interest_method'
+            if method_key not in args[0]:
+                data = args[0].copy()
+                data[method_key] = kwargs['instance'].interest_method
+                args = (data, *args[1:])
         super().__init__(*args, **kwargs)
         self.fields["first_payment_date"].input_formats = ["%Y-%m-%d"]
         self.fields["payment_frequency"].choices = [("", "Not entered"), *DraftFinanceProposal.Frequency.choices]

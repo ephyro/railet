@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: MPL-2.0
 from functools import wraps
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from .models import Membership
@@ -16,7 +17,7 @@ def member_view(view):
     return wrapped
 
 def context(request, **kwargs):
-    return {"member": request.member, **kwargs}
+    return {"member": request.member, "demo_accounts_enabled": getattr(settings, "DEMO_LEDGER_ENABLED", False), **kwargs}
 
 def require_editor(request):
     if request.member.role not in (Membership.Role.OWNER, Membership.Role.STAFF):

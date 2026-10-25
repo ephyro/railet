@@ -4,30 +4,30 @@
 {% block extra_head %}<link rel="stylesheet" href="{% asset_url 'vehicles.css' %}"><link rel="stylesheet" href="{% asset_url 'deal-workspace.css' %}">{% endblock %}
 {% block content %}
 <div class="deal-workspace">
-  <form id="deal-desk" method="post" data-deal-workspace {% if member.can_manage_inventory %}data-unsaved-form data-bound="{{ form.is_bound|yesno:'true,false' }}" data-clean-status="All changes saved"{% endif %}>
+  <form id="deal-desk" method="post" data-deal-workspace {% if deal_editable %}data-unsaved-form data-bound="{{ form.is_bound|yesno:'true,false' }}" data-clean-status="All changes saved"{% endif %}>
   <section class="deal-heading">
     <a class="deal-back" href="{% url 'deals' %}">← All drafts</a>
-    <div class="deal-title"><h1>Deal #{{ deal.pk }}</h1><span class="deal-state">Draft</span><div class="deal-toolbar">{% if deal_files_enabled %}<a class="deal-review-link" href="{% url 'deal_files' deal.pk %}">Files</a>{% endif %}<a class="deal-review-link" href="{% url 'deal_review' deal.pk %}">Review deal</a>{% if member.can_manage_inventory %}<span class="deal-save-status" data-save-status aria-live="polite">All changes saved</span><button type="submit" class="button">Save deal</button>{% else %}<span class="deal-save-status">View only</span>{% endif %}</div></div>
+    <div class="deal-title"><h1>Deal #{{ deal.pk }}</h1><span class="deal-state">{% if deal.archived_at %}Archived draft{% else %}Draft{% endif %}</span><div class="deal-toolbar"><a class="deal-review-link" href="{% url 'followups' %}?deal={{ deal.pk }}">Follow-ups</a>{% if member.can_manage_inventory %}<a class="deal-review-link" href="{% url 'draft_lifecycle' deal.pk %}">{% if deal.archived_at %}Restore draft{% else %}Archive draft{% endif %}</a>{% endif %}{% if demo_packets_enabled %}<a class="deal-review-link" href="{% url 'demo_packet_list' deal.pk %}">Demo packets</a>{% endif %}{% if deal_files_enabled %}<a class="deal-review-link" href="{% url 'deal_files' deal.pk %}">Files</a>{% endif %}<a class="deal-review-link" href="{% url 'deal_review' deal.pk %}">Review deal</a>{% if deal_editable %}<span class="deal-save-status" data-save-status aria-live="polite">All changes saved</span><button type="submit" class="button">Save deal</button>{% else %}<span class="deal-save-status">View only</span>{% endif %}</div></div>
   </section>
 
-  <div class="deal-sheet">
+  {% if deal.archived_at %}<p class="notice">Archived {{ deal.archived_at|date:'M j, Y' }}. {{ deal.archive_reason }} Restore the draft before editing its worksheet, parties or trade.</p>{% endif %}<div class="deal-sheet">
   <div class="deal-parties">
     <section class="deal-party" aria-labelledby="deal-vehicle-label">
-      <div class="deal-party-label"><span id="deal-vehicle-label">Vehicle</span>{% if member.can_manage_inventory %}<a href="{% url 'deal_edit' deal.pk %}#vehicle">Change</a>{% endif %}</div>
+      <div class="deal-party-label"><span id="deal-vehicle-label">Vehicle</span>{% if deal_editable %}<a href="{% url 'deal_edit' deal.pk %}#vehicle">Change</a>{% endif %}</div>
       <div class="deal-vehicle-identity">{% include 'inventory/vehicle_photo.html' with vehicle=deal.vehicle %}<div><h2><a href="{% url 'vehicle_detail' deal.vehicle_id %}">{{ deal.vehicle }}</a></h2>
       <p>Stock {{ deal.vehicle.stock_number }}{% if deal.vehicle.vin %} <span aria-hidden="true">·</span> {{ deal.vehicle.vin }}{% endif %}</p>
       <span class="deal-title-brand {% if deal.vehicle.title_brand != 'unbranded' %}needs-review{% endif %}">Title: {{ deal.vehicle.get_title_brand_display }}</span></div></div>
     </section>
     <section class="deal-party" aria-labelledby="deal-buyer-label">
-      <div class="deal-party-label"><span id="deal-buyer-label">Buyer</span>{% if member.can_manage_inventory %}<a href="{% url 'deal_edit' deal.pk %}#buyer">Change</a>{% endif %}</div>
+      <div class="deal-party-label"><span id="deal-buyer-label">Buyer</span>{% if deal_editable %}<a href="{% url 'deal_edit' deal.pk %}#buyer">Change</a>{% endif %}</div>
       <h2><a href="{% url 'customer_detail' deal.buyer_id %}">{{ deal.buyer }}</a></h2>
       <p>{% if deal.buyer.phone %}{{ deal.buyer.phone }}{% if deal.buyer.email %} <span aria-hidden="true">·</span> {{ deal.buyer.email }}{% endif %}{% elif deal.buyer.email %}{{ deal.buyer.email }}{% else %}<a href="{% url 'customer_detail' deal.buyer_id %}">View customer</a>{% endif %}</p>
 
     </section>
     <section class="deal-party deal-party-co" aria-labelledby="deal-co-label">
       <div class="deal-party-label"><span id="deal-co-label">Co-buyer</span></div>
-      {% if deal.co_buyer %}<h2><a href="{% url 'customer_detail' deal.co_buyer_id %}">{{ deal.co_buyer }}</a></h2><p>{{ deal.co_buyer.phone|default:deal.co_buyer.email }}</p>{% if member.can_manage_inventory %}<a class="deal-co-action" href="{% url 'deal_edit' deal.pk %}#buyer">Change co-buyer</a>{% endif %}
-      {% elif member.can_manage_inventory %}<a class="deal-add-person" href="{% url 'deal_edit' deal.pk %}#buyer">+ Add co-buyer</a>{% else %}<p>None assigned</p>{% endif %}
+      {% if deal.co_buyer %}<h2><a href="{% url 'customer_detail' deal.co_buyer_id %}">{{ deal.co_buyer }}</a></h2><p>{{ deal.co_buyer.phone|default:deal.co_buyer.email }}</p>{% if deal_editable %}<a class="deal-co-action" href="{% url 'deal_edit' deal.pk %}#buyer">Change co-buyer</a>{% endif %}
+      {% elif deal_editable %}<a class="deal-add-person" href="{% url 'deal_edit' deal.pk %}#buyer">+ Add co-buyer</a>{% else %}<p>None assigned</p>{% endif %}
     </section>
   </div>
 
@@ -83,7 +83,7 @@
       </section>
       <section id="deal-history" class="deal-entry" data-deal-panel aria-labelledby="history-heading">
         <div class="deal-section-heading"><h2 id="history-heading">Saved history</h2></div>
-        <ol class="deal-history">{% for event in events %}<li><b>{% if event.snapshot.action == 'trade_saved' %}Trade saved{% elif event.snapshot.action == 'trade_removed' %}Trade removed{% elif event.snapshot.action == 'trade_intake' %}Trade added to inventory{% elif event.snapshot.revision == 1 %}Draft started{% else %}Draft updated{% endif %}</b><span>by {{ event.actor.get_username }}{% if event.snapshot.reason %} · {{ event.snapshot.reason }}{% endif %}</span><time datetime="{{ event.created_at|date:'c' }}">{{ event.created_at|date:'M j, Y · g:i A' }}</time></li>{% empty %}<li>No saved history is available.</li>{% endfor %}</ol>
+        <p><a href="{% url 'deal_history' deal.pk %}">View complete saved history</a></p><ol class="deal-history">{% for event in events %}<li><b>{% if event.snapshot.action == 'draft_archived' %}Draft archived{% elif event.snapshot.action == 'draft_restored' %}Draft restored{% elif event.snapshot.action == 'trade_saved' %}Trade saved{% elif event.snapshot.action == 'trade_removed' %}Trade removed{% elif event.snapshot.action == 'trade_intake' %}Trade added to inventory{% elif event.snapshot.revision == 1 %}Draft started{% else %}Draft updated{% endif %}</b><span>by {{ event.actor.get_username }}{% if event.snapshot.reason %} · {{ event.snapshot.reason }}{% endif %}</span><time datetime="{{ event.created_at|date:'c' }}">{{ event.created_at|date:'M j, Y · g:i A' }}</time></li>{% empty %}<li>No saved history is available.</li>{% endfor %}</ol>
       </section>
       </div>
 
@@ -104,5 +104,5 @@
   </div>
   </form>
 </div>
-<script defer src="{% asset_url 'deal-workspace.js' %}"></script>{% if member.can_manage_inventory %}<script defer src="{% asset_url 'vehicle-form.js' %}"></script>{% endif %}
+<script defer src="{% asset_url 'deal-workspace.js' %}"></script>{% if deal_editable %}<script defer src="{% asset_url 'vehicle-form.js' %}"></script>{% endif %}
 {% endblock %}

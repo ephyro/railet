@@ -56,3 +56,6 @@ system checks passed. Firefox verified separate unsaved proposals surviving a ca
 save/reload, explicit zero versus unknown rate, invalid inactive proposal recovery,
 and no horizontal page overflow at 1440, 390 and 320 pixels. A separate synthetic
 draft was used; the owner's existing review deal was not edited.
+
+
+Draft proposals can explicitly record Precomputed or Simple interest separately for BHPH and outside financing. Existing records remain unchosen. The choice is proposed metadata only; it does not activate calculations or change posted obligations. See SCHEDULE_METHODS.md.

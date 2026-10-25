@@ -8,7 +8,7 @@
   <p>Find a saved deal and pick up where you left off.</p>
   {% if member.can_manage_inventory %}<a class="button" href="{% url 'deal_create' %}">+ Start a deal</a>{% endif %}
 </section>
-<section class="panel">
+<form class="filters" method="get"><label for="draft-scope">Show drafts<select name="scope" id="draft-scope"><option value="active" {% if draft_scope == 'active' %}selected{% endif %}>Active</option><option value="archived" {% if draft_scope == 'archived' %}selected{% endif %}>Archived</option><option value="all" {% if draft_scope == 'all' %}selected{% endif %}>All</option></select></label><button class="button" type="submit">Show drafts</button></form><section class="panel">
   {% include 'shared/filter_builder.html' %}
   <div class="table-wrap" tabindex="0" role="region" aria-label="Draft results">
     <table>
@@ -16,7 +16,7 @@
       <tbody>
         {% for deal in deals %}
         <tr>
-          <td><a href="{% url 'deal_detail' deal.pk %}">#{{ deal.pk }}</a><small>{{ deal.get_deal_type_display }}</small></td>
+          <td><a href="{% url 'deal_detail' deal.pk %}">#{{ deal.pk }}</a><small>{{ deal.get_deal_type_display }}{% if deal.archived_at %} · Archived{% endif %}</small></td>
           <td><a class="vehicle-identity" href="{% url 'deal_detail' deal.pk %}">{% include 'inventory/vehicle_photo.html' with vehicle=deal.vehicle %}<span><b>{{ deal.vehicle }}</b><small>Stock {{ deal.vehicle.stock_number }}{% if deal.vehicle.vin %} · VIN …{{ deal.vehicle.vin|slice:'-6:' }}{% endif %}</small></span></a></td>
           <td><a href="{% url 'customer_detail' deal.buyer_id %}">{{ deal.buyer }}</a>{% if deal.co_buyer %}<small>Co-buyer: <a href="{% url 'customer_detail' deal.co_buyer_id %}">{{ deal.co_buyer }}</a></small>{% endif %}</td>
           <td>${{ deal.draft_balance|floatformat:2 }}</td>

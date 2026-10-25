@@ -6,8 +6,16 @@ from customers import views as customers
 from deals import views as deals
 from deals import trade_views
 from deals import review_views
+from deals import lifecycle
+from deals import history_views
+from deals import followups
 from documents import views as documents
+from documents import packet_views
+from documents import packet_exports
 from core import filter_views
+from feedback import views as feedback
+from finance import views as finance
+from finance import schedule_views
 urlpatterns = [path("accounts/login/", auth.LoginView.as_view(), name="login"), path("accounts/logout/", auth.LogoutView.as_view(), name="logout"), path("", views.today, name="today"), path("inventory/", views.vehicle_list, name="inventory"), path("inventory/new/", views.vehicle_create, name="vehicle_create"), path("inventory/<int:pk>/", views.vehicle_detail, name="vehicle_detail"), path("inventory/<int:pk>/edit/", views.vehicle_edit, name="vehicle_edit")]
 
 urlpatterns += [
@@ -32,4 +40,53 @@ urlpatterns += [
     path("deals/new/", deals.deal_create, name="deal_create"),
     path("deals/<int:pk>/", deals.deal_detail, name="deal_detail"),
     path("deals/<int:pk>/edit/", deals.deal_edit, name="deal_edit"),
+]
+
+urlpatterns += [
+    path("feedback/", feedback.report_list, name="feedback_list"),
+    path("feedback/new/", feedback.report_create, name="feedback_create"),
+    path("feedback/confirm/", feedback.report_confirm, name="feedback_confirm"),
+    path("feedback/<int:pk>/", feedback.report_detail, name="feedback_detail"),
+]
+
+urlpatterns += [
+    path("deals/<int:pk>/demo-packets/", packet_views.packet_list, name="demo_packet_list"),
+    path("deals/<int:pk>/demo-packets/<int:packet_pk>/", packet_views.packet_detail, name="demo_packet_detail"),
+    path("deals/<int:pk>/demo-packets/<int:packet_pk>/artifact/", packet_views.packet_artifact, name="demo_packet_artifact"),
+]
+
+urlpatterns += [path("deals/<int:pk>/archive-state/", lifecycle.change_state, name="draft_lifecycle")]
+
+urlpatterns += [path("deals/<int:pk>/history/", history_views.deal_history, name="deal_history")]
+
+urlpatterns += [path("deals/<int:pk>/demo-packets/<int:packet_pk>/export/", packet_exports.packet_export, name="demo_packet_export")]
+
+urlpatterns += [
+    path("follow-ups/", followups.listing, name="followups"),
+    path("follow-ups/<int:pk>/", followups.detail, name="followup_detail"),
+    path("deals/<int:pk>/follow-ups/new/", followups.editor, name="followup_create"),
+    path("deals/<int:pk>/follow-ups/<int:task_pk>/edit/", followups.editor, name="followup_edit"),
+]
+
+urlpatterns += [
+    path("ledger-demo/", finance.listing, name="ledger_demo_list"),
+    path("ledger-demo/new/", finance.prepare, {"kind":"opening"}, name="ledger_demo_new"),
+    path("ledger-demo/confirm/", finance.confirm, name="ledger_demo_confirm"),
+    path("ledger-demo/<int:pk>/", finance.detail, name="ledger_demo_detail"),
+    path("ledger-demo/<int:pk>/receipt/", finance.prepare, {"kind":"receipt"}, name="ledger_demo_receipt"),
+    path("ledger-demo/<int:pk>/reverse/<int:posting_pk>/", finance.prepare, {"kind":"reversal"}, name="ledger_demo_reverse"),
+]
+
+urlpatterns += [
+    path("ledger-demo/<int:pk>/schedules/", schedule_views.listing, name="schedule_list"),
+    path("ledger-demo/<int:pk>/schedules/new/", schedule_views.prepare, name="schedule_new"),
+    path("ledger-demo/schedules/confirm/", schedule_views.confirm, name="schedule_confirm"),
+    path("ledger-demo/<int:pk>/schedules/<int:scenario_pk>/", schedule_views.detail, name="schedule_detail"),
+]
+
+from finance import account_views
+urlpatterns += [
+    path('bhph-demo/<int:pk>/', account_views.workspace, name='bhph_account'),
+    path('bhph-demo/<int:pk>/link/', account_views.link, name='bhph_account_link'),
+    path('bhph-demo/<int:pk>/receipts/<int:posting_pk>/', account_views.receipt, name='bhph_account_receipt'),
 ]

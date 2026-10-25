@@ -1,0 +1,4 @@
+/* SPDX-License-Identifier: MPL-2.0 */
+.ledger-panel{max-width:880px}.ledger-field{margin-bottom:20px}.ledger-panel dd,.ledger-panel p{overflow-wrap:anywhere}.ledger-edit{min-height:40px;border:1px solid var(--green);background:white;color:var(--green);padding:10px 16px;border-radius:5px;cursor:pointer}.ledger-entries{padding-left:20px}.ledger-entries li{padding:18px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}.ledger-entries h3{font-size:14px}.ledger-entries p{font-size:12px}.ledger-entries a{display:inline-block;min-height:40px;padding:10px 0;font-size:12px}@media(max-width:500px){.ledger-panel dl{grid-template-columns:1fr;gap:8px}.ledger-panel dd{margin-bottom:12px}}
+
+.schedule-inputs{white-space:pre-wrap;overflow-wrap:anywhere;font-size:11px}.ledger-panel summary{cursor:pointer;min-height:40px;padding:10px 0}.ledger-panel ul{font-size:12px;line-height:1.8;padding-left:20px}

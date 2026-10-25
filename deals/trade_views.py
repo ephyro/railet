@@ -7,14 +7,22 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from core.access import member_view, context, require_editor
+from core.models import Dealership
 from .models import DraftDeal, DraftTradeIn
 from .trade_forms import TradeInForm, TradeRemoveForm, TradeIntakeForm
 from .trades import save_trade, remove_trade, intake_trade
 
 
 def scoped_deal(request, pk):
+    if request.method == "POST":
+        # Match packet/inventory intake ordering: dealership before parent draft.
+        Dealership.objects.select_for_update().get(pk=request.member.dealership_id)
     choices = DraftDeal.objects.filter(dealership=request.member.dealership)
-    return get_object_or_404(choices.select_for_update() if request.method == "POST" else choices, pk=pk)
+    deal = get_object_or_404(choices.select_for_update() if request.method == "POST" else choices, pk=pk)
+    if deal.archived_at:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied("Restore this archived draft before changing its trade.")
+    return deal
 
 
 def check_revision(form, deal):

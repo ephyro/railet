@@ -1,0 +1,2 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}{% block title %}Preview expired{% endblock %}{% block content %}<section class="page-heading"><h1>Review a fresh posting preview</h1><p>This preview expired or is invalid. No new entry was posted by this request.</p></section><section class="panel"><p>Use your browser’s Back button to recover entered work, or open the synthetic ledger to check whether an earlier attempt was saved.</p><a href="{% url 'ledger_demo_list' %}">Open synthetic ledger</a></section>{% endblock %}

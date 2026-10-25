@@ -24,6 +24,8 @@ services:
       - ./customers:/app/customers:ro
       - ./deals:/app/deals:ro
       - ./documents:/app/documents:ro
+      - ./feedback:/app/feedback:ro
+      - ./finance:/app/finance:ro
       - ./templates:/app/templates:ro
       - ./static:/app/static:ro
       - private_media:/app/private-media

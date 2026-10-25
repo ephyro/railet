@@ -21,7 +21,7 @@
     submitting = true;
     if (submitButton) {
       submitButton.disabled = true;
-      submitButton.textContent = 'Saving…';
+      submitButton.textContent = form.dataset.submitLabel || 'Saving…';
     }
     update();
   });

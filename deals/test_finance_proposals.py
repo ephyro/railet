@@ -86,3 +86,25 @@ class FinanceProposalTests(TestCase):
         self.member.role='viewer'; self.member.save()
         self.assertEqual(self.post().status_code,403)
         self.assertEqual(self.client.get(self.url).status_code,200)
+
+    def test_interest_methods_are_explicit_separate_and_snapshotted(self):
+        self.assertEqual(self.post(**{'bhph-included':'1', 'bhph-interest_method':'precomputed', 'outside-included':'1', 'outside-interest_method':'simple'}).status_code,302)
+        self.assertEqual(DraftFinanceProposal.objects.get(kind='bhph').interest_method,'precomputed')
+        self.assertEqual(DraftFinanceProposal.objects.get(kind='outside').interest_method,'simple')
+        snapshot = DealEvent.objects.filter(deal=self.deal).first().snapshot
+        self.assertEqual(snapshot['finance_proposals']['bhph']['interest_method'],'precomputed')
+        self.assertEqual(snapshot['finance_proposals']['outside']['interest_method'],'simple')
+
+    def test_omitted_method_preserves_selection_but_explicit_blank_clears(self):
+        self.post(**{'bhph-included':'1','bhph-interest_method':'precomputed'})
+        self.post(**{'bhph-included':'1','bhph-payment_count':'12'})
+        self.assertEqual(DraftFinanceProposal.objects.get().interest_method,'precomputed')
+        self.post(**{'bhph-included':'1','bhph-interest_method':''})
+        self.assertEqual(DraftFinanceProposal.objects.get().interest_method,'')
+
+    def test_invalid_method_blocks_save_and_preserves_work(self):
+        response = self.post(**{'bhph-included':'1','bhph-interest_method':'invented','bhph-creditor_name':'Keep my entry'})
+        self.assertEqual(response.status_code,200)
+        self.assertTrue(response.context['proposal_errors'])
+        self.assertContains(response,'Keep my entry')
+        self.assertFalse(DraftFinanceProposal.objects.exists())

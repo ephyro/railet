@@ -10,7 +10,7 @@ from inventory.identity import OdometerUnit, OdometerStatus, ODOMETER_FIELDS, va
 from inventory.models import Vehicle
 
 MONEY_FIELDS = ("sale_price", "tax", "title_registration", "dealer_fee", "trade_allowance", "trade_payoff", "down_payment")
-PROPOSAL_FIELDS = ("creditor_name", "payment_frequency", "payment_count", "annual_contract_rate", "first_payment_date")
+PROPOSAL_FIELDS = ("interest_method", "creditor_name", "payment_frequency", "payment_count", "annual_contract_rate", "first_payment_date")
 TRADE_IDENTITY_FIELDS = ("vin", "year", "make", "model", "title_brand", *ODOMETER_FIELDS)
 TRADE_FIELDS = (*TRADE_IDENTITY_FIELDS, "lienholder_name", "payoff_good_through", "notes")
 
@@ -28,6 +28,9 @@ def money_field():
     return models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal("0"))])
 
 class DraftDeal(models.Model):
+    archived_at = models.DateTimeField(null=True, blank=True)
+    archived_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="archived_drafts")
+    archive_reason = models.CharField(max_length=300, blank=True)
     deal_type = models.CharField(max_length=12, choices=DealType.choices, default=DealType.UNDECIDED)
     dealership = models.ForeignKey("core.Dealership", on_delete=models.PROTECT)
     creation_key = models.UUIDField(default=uuid.uuid4, editable=False)
@@ -71,6 +74,12 @@ class DraftDeal(models.Model):
 
 
 class DraftFinanceProposal(models.Model):
+    class InterestMethod(models.TextChoices):
+        NOT_CHOSEN = '', 'Not chosen'
+        PRECOMPUTED = 'precomputed', 'Precomputed'
+        SIMPLE = 'simple', 'Simple interest'
+
+    interest_method = models.CharField(max_length=15, choices=InterestMethod.choices, default='', blank=True)
     class Frequency(models.TextChoices):
         WEEKLY = "weekly", "Weekly"
         BIWEEKLY = "biweekly", "Every 2 weeks"
@@ -91,6 +100,7 @@ class DraftFinanceProposal(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["deal", "kind"], name="one_proposal_per_draft_kind"),
             models.CheckConstraint(condition=models.Q(kind__in=FINANCING_TYPES), name="proposal_kind_financing"),
+            models.CheckConstraint(condition=models.Q(interest_method__in=("", "precomputed", "simple")), name="proposal_interest_method_known"),
             models.CheckConstraint(condition=models.Q(payment_count__isnull=True) | models.Q(payment_count__gte=1), name="proposal_payment_count_positive"),
             models.CheckConstraint(condition=models.Q(annual_contract_rate__isnull=True) | models.Q(annual_contract_rate__gte=0), name="proposal_rate_nonnegative"),
             models.CheckConstraint(condition=models.Q(payment_frequency="") | models.Q(payment_frequency__in=("weekly", "biweekly", "semimonthly", "monthly")), name="proposal_frequency_known"),
@@ -144,3 +154,33 @@ class DealEvent(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         ordering = ["-created_at", "-pk"]
+
+
+class DealFollowUp(models.Model):
+    deal = models.ForeignKey(DraftDeal, on_delete=models.PROTECT, related_name='follow_ups')
+    title = models.CharField(max_length=120)
+    detail = models.TextField(max_length=2000, blank=True)
+    assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name='deal_follow_ups')
+    due_on = models.DateField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name='completed_deal_follow_ups')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='created_deal_follow_ups')
+    creation_key = models.UUIDField(default=uuid.uuid4, editable=False)
+    revision = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['due_on', 'pk']
+        constraints = [models.UniqueConstraint(fields=['deal','creation_key'], name='unique_deal_follow_up_creation')]
+
+
+class FollowUpEvent(models.Model):
+    follow_up = models.ForeignKey(DealFollowUp, on_delete=models.PROTECT, related_name='events')
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    action = models.CharField(max_length=15)
+    snapshot = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at', '-pk']

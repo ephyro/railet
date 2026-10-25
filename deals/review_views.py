@@ -71,6 +71,7 @@ def _render_review(request, pk):
     if selected_proposal:
         rate = selected_proposal.annual_contract_rate
         proposal_rows = [
+            ("Proposed interest method", selected_proposal.get_interest_method_display()),
             ("Creditor or funding source", selected_proposal.creditor_name.strip() if selected_proposal.creditor_name.strip() else "Not recorded"),
             (
                 "Payment frequency",

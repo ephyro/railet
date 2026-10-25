@@ -21,7 +21,10 @@ def vehicles(request):
 
 @member_view
 def today(request):
-    return render(request, "inventory/today.html", context(request))
+    from deals.models import DealFollowUp
+    from django.utils import timezone
+    tasks = DealFollowUp.objects.filter(deal__dealership=request.member.dealership, assigned_to=request.user, completed_at__isnull=True).order_by(F("due_on").asc(nulls_last=True), "pk")
+    return render(request, "inventory/today.html", context(request, follow_ups=tasks[:5], today=timezone.localdate()))
 
 @member_view
 def vehicle_list(request):

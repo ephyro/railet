@@ -7,5 +7,5 @@ cd "$project_dir"
 rsync -az --relative --exclude='__pycache__' \
   -e "ssh -F /dev/null -p 2223 -i $project_dir/.local/vm-access/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes" \
   manage.py requirements.txt requirements-staging.txt Dockerfile compose.yaml compose.staging.yaml \
-  core inventory customers deals documents railet templates static deploy dev docs README.md AGENTS.md LICENSE .dockerignore \
+  core inventory customers deals documents feedback finance railet templates static deploy dev docs README.md AGENTS.md LICENSE .dockerignore \
   dev@127.0.0.1:railet/

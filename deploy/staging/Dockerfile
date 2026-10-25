@@ -10,6 +10,8 @@ COPY --chown=railet:railet inventory ./inventory
 COPY --chown=railet:railet customers ./customers
 COPY --chown=railet:railet deals ./deals
 COPY --chown=railet:railet documents ./documents
+COPY --chown=railet:railet feedback ./feedback
+COPY --chown=railet:railet finance ./finance
 COPY --chown=railet:railet templates ./templates
 COPY --chown=railet:railet static ./static
 USER railet

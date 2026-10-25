@@ -11,3 +11,5 @@
 .button:disabled{opacity:.65;cursor:wait}
 @media(max-width:700px){aside nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}aside nav a{justify-content:center;white-space:nowrap;padding:9px 4px;font-size:12px;min-width:0}aside nav svg{display:none}}
 @media(max-width:360px){aside nav a{font-size:11px}}
+
+.feedback-mobile{display:none}@media(max-width:700px){.feedback-mobile{display:inline-block;margin-top:24px;font-size:12px;padding:10px 0}}

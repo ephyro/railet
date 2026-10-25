@@ -7,13 +7,15 @@ DEBUG = os.getenv("RAILET_DEBUG", "0") == "1"
 TRADE_INTAKE_DEMO_ENABLED = DEBUG
 # Supporting-file rehearsal remains synthetic-only until storage/security review.
 DEAL_FILES_DEMO_ENABLED = DEBUG
+DEMO_PACKETS_ENABLED = DEBUG
+DEMO_LEDGER_ENABLED = DEBUG
 SECRET_KEY = os.environ.get("RAILET_SECRET_KEY", "")
 if not SECRET_KEY:
     if not DEBUG:
         raise RuntimeError("Set RAILET_SECRET_KEY or explicitly enable local RAILET_DEBUG=1")
     SECRET_KEY = "local-development-only-not-for-production"
 ALLOWED_HOSTS = os.getenv("RAILET_ALLOWED_HOSTS", "localhost,127.0.0.1,[::1]").split(",")
-INSTALLED_APPS = ["django.contrib.auth", "django.contrib.contenttypes", "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles", "core", "inventory", "customers", "deals", "documents"]
+INSTALLED_APPS = ["django.contrib.auth", "django.contrib.contenttypes", "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles", "core", "inventory", "customers", "deals", "documents", "feedback", "finance"]
 MIDDLEWARE = ["django.middleware.security.SecurityMiddleware", "django.contrib.sessions.middleware.SessionMiddleware", "django.middleware.common.CommonMiddleware", "django.middleware.csrf.CsrfViewMiddleware", "django.contrib.auth.middleware.AuthenticationMiddleware", "django.contrib.messages.middleware.MessageMiddleware", "django.middleware.clickjacking.XFrameOptionsMiddleware"]
 ROOT_URLCONF = "railet.urls"
 TEMPLATES = [{"BACKEND": "django.template.backends.django.DjangoTemplates", "DIRS": [BASE_DIR / "templates"], "APP_DIRS": True, "OPTIONS": {"context_processors": ["django.template.context_processors.request", "django.contrib.auth.context_processors.auth", "django.contrib.messages.context_processors.messages"]}}]

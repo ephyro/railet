@@ -72,6 +72,7 @@ def build_review_reminders(deal, trade, proposal, links):
 
     if proposal:
         fields = (
+            ("interest_method", "Proposed interest method"),
             ("creditor_name", "Creditor or funding source"),
             ("payment_frequency", "Payment frequency"),
             ("payment_count", "Payment count"),

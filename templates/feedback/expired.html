@@ -1,0 +1,2 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}{% block title %}Preview expired{% endblock %}{% block content %}<section class="page-heading"><h1>This preview is no longer valid</h1><p>Reports must be confirmed within 30 minutes of previewing. No new report was saved from this request.</p></section><section class="panel"><p>Use your browser’s Back button to return to your entered text, then preview it again. An earlier successful save may already be in your reports.</p><a href="{% url 'feedback_list' %}">View saved reports</a></section>{% endblock %}

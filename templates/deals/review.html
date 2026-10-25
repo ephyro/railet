@@ -5,7 +5,7 @@
 {% block content %}
 <section class="page-heading review-heading">
   <a href="{% url 'deal_detail' deal.pk %}">← Deal #{{ deal.pk }}</a>
-  <h1>Draft review</h1>
+  <h1>Draft review{% if deal.archived_at %} · Archived{% endif %}</h1>
   <p>Internal completeness review for the saved deal facts and worksheet.</p>
 </section>
 

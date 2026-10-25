@@ -8,6 +8,10 @@ from django.core.exceptions import ValidationError
 @transaction.atomic
 def persist_draft(deal, *, actor, proposals=(), action="draft_saved", reason=""):
     # The database arbitrates concurrent creation keys. Other validation runs here.
+    if deal.pk and action not in ("draft_archived", "draft_restored"):
+        from .models import DraftDeal
+        if DraftDeal.objects.filter(pk=deal.pk, archived_at__isnull=False).exists():
+            raise ValidationError("Restore this archived draft before changing it.")
     deal.full_clean(exclude=["creation_key"])
     deal.save()
     for form in proposals:
@@ -30,7 +34,10 @@ def persist_draft(deal, *, actor, proposals=(), action="draft_saved", reason="")
         deal=deal,
         actor=actor,
         snapshot={
-            "schema_version": 3,
+            "schema_version": 5,
+            "archived_at": deal.archived_at.isoformat() if deal.archived_at else None,
+            "archived_by_id": deal.archived_by_id,
+            "archive_reason": deal.archive_reason,
             "action": action,
             "reason": reason,
             "trades": [

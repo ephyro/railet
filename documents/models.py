@@ -54,3 +54,30 @@ class DealFileEvent(models.Model):
     class Meta:
         ordering = ["-created_at", "-pk"]
 
+
+
+class DemoDealPacket(models.Model):
+    """Append-only through application interfaces; privileged DB writes remain possible."""
+    deal = models.ForeignKey('deals.DraftDeal', on_delete=models.PROTECT, related_name='demo_packets')
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_at = models.DateTimeField()
+    creation_key = models.UUIDField(default=uuid.uuid4, editable=False)
+    template_version = models.CharField(max_length=40)
+    snapshot = models.JSONField()
+    source_sha256 = models.CharField(max_length=64)
+    html = models.TextField()
+    artifact_sha256 = models.CharField(max_length=64)
+
+    class Meta:
+        ordering = ['-created_at', '-pk']
+        constraints = [models.UniqueConstraint(fields=['deal', 'creation_key'], name='unique_demo_packet_creation')]
+
+
+class DemoPacketExportEvent(models.Model):
+    packet = models.ForeignKey(DemoDealPacket, on_delete=models.PROTECT, related_name='export_events')
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+    bundle_sha256 = models.CharField(max_length=64)
+
+    class Meta:
+        ordering = ['-created_at', '-pk']

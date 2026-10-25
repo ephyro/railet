@@ -171,11 +171,11 @@ class DraftDealReviewTests(TestCase):
         self.deal.save()
         proposal = DraftFinanceProposal.objects.create(deal=self.deal, kind=DealType.BHPH)
         response = self.client.get(self.url)
-        self.assertContains(response, 'data-review-field="proposal-4">Not recorded</dd>')
+        self.assertContains(response, 'data-review-field="proposal-5">Not recorded</dd>')
         proposal.annual_contract_rate = Decimal("0.0000")
         proposal.save()
         response = self.client.get(self.url)
-        self.assertContains(response, 'data-review-field="proposal-4">0.0000%</dd>')
+        self.assertContains(response, 'data-review-field="proposal-5">0.0000%</dd>')
 
     def test_undecided_deal_does_not_infer_cash_no_brand_or_actual_mileage(self):
         response = self.client.get(self.url)

@@ -62,3 +62,29 @@ The community source is licensed under [MPL 2.0](LICENSE). The plan keeps essent
 Future revenue is intended to come from implementation, migration, training, support, managed hosting, and separately licensed enterprise extensions. Paid services and enterprise offerings are planned; there is no production service or pricing commitment here. Contributors retain their copyright; contributions do not imply copyright assignment or permission to move community work into closed files.
 
 See [third-party notices](THIRD_PARTY_NOTICES.md) for dependencies. The Railet and Ephyro names identify this project; the software license does not grant trademark rights.
+
+## Private feedback
+
+**Help & feedback** lets members preview and save workflow reports privately in their installation. Authors and dealership owners can view them; nothing is sent to Ephyro or GitHub. No attachments or diagnostics are collected. Use synthetic examples and remove private information yourself. See [feedback scope and verification](docs/FEEDBACK.md); the new module requires migration and its PostgreSQL VM integration check remains outstanding.
+
+Saved drafts also offer **Demo packets** in development: preview a synthetic summary and preserve its facts and exact HTML for later inspection. No legal form, transaction finalization, loan, payment, or signature is created. See [demo packet scope and verification](docs/DEMO_PACKETS.md); the new migration still needs PostgreSQL VM integration verification.
+
+Drafts can be **archived and restored with reasons**, preserving history and saved packets. Active drafts are shown by default; archived drafts remain accessible through the draft list scope selector. See [draft archiving](docs/DRAFT_ARCHIVING.md) for behavior, migration and verification limits.
+
+The deal’s History tab links to **complete saved history**, including older versions beyond the recent activity list. See [history scope and verification](docs/DEAL_HISTORY.md).
+
+Saved demo packets also support a private **ZIP export** with original HTML, captured JSON and a hash manifest. It exports one packet, excluding uploads and complete deal history; it is not a full backup. See [packet export](docs/DEMO_PACKET_EXPORT.md).
+
+**Deal follow-ups** add internal reminders with owners, optional due dates, completion/reopening and history. Your open assignments appear on Home. No customer communications are sent. See [follow-up behavior and verification](docs/DEAL_FOLLOWUPS.md).
+
+## PostgreSQL integration and synthetic ledger
+
+An optional owner-only local PostgreSQL setup is documented in [POSTGRES_INTEGRATION.md](docs/POSTGRES_INTEGRATION.md), with `dev/postgres.sh` for existing initialized environments. All current migrations and the 237-test suite have been verified on a fresh PostgreSQL 17.11 database; this is separate from the original offline VM and does not validate an upgrade of that VM's data.
+
+`/ledger-demo/` offers an explicitly synthetic accounting rehearsal: opening provenance, unapplied manual receipts, linked full corrections and reconciliation. Every posting is previewed first. No loan, real payment, allocation, interest or bank settlement is created. See [ledger scope, source review and remaining gates](docs/LEDGER_FOUNDATION.md).
+
+
+Draft financing proposals support explicit Precomputed or Simple interest selection. Separate saved synthetic schedule illustrations support monthly and other cadences without changing ledger balances. See [schedule methods and production boundaries](docs/SCHEDULE_METHODS.md).
+
+
+[BHPH account workspace](docs/BHPH_ACCOUNT_WORKSPACE.md) brings linked draft context, customer/vehicle identification, schedule illustrations and synthetic payment receipts together. Development only; recorded demo funds remain unapplied.

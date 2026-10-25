@@ -1,0 +1,15 @@
+# Complete saved draft history
+
+The deal workspace still offers its recent activity in the History tab. **View complete saved history** opens a separate read-only page, paginated 25 events at a time, with links to newer/older entries. No event is hidden permanently by the workspace's recent-20 limit.
+
+Each entry identifies its event number, actor account, saved time, revision when recorded, action and reason. A disclosure shows recorded worksheet amounts, party record numbers, notes and a technical representation of the stored JSON. Nothing is reconstructed from current vehicle/customer profiles. Missing older-schema values are marked as unrecorded; invalid/nonfinite or out-of-bounds monetary data is not formatted as a valid amount. Decimal formatting avoids float conversion.
+
+Archive/restore and trade actions use explicit labels. This page does not restore an old version or edit/delete anything. It is history of draft records, not a contract, financial ledger, receipt, digital signature or legally effective change. Actor display names are current account labels; source party/vehicle names are not invented for historical snapshots that never captured them. Existing retained demo packets provide separately frozen document facts.
+
+The parent draft is scoped to the signed-in dealership. All members, including viewers, can read its history. The route accepts GET only and uses private/no-store caching on normal responses. Source text is escaped. Current model permissions remain authoritative; privileged database writers can alter events. No tamper-proof audit store or record-specific deletion/retention policy is introduced.
+
+Verification: four local tests cover 27-entry pagination and oldest-entry access, viewer access/dealership isolation/method/login/cache controls, older/malformed numeric snapshots and escaped notes, unchanged source records, empty history and invalid/out-of-range pages. The focused history/lifecycle/packet suite passed all 26 tests; after the monetary bounds hardening, all four history tests passed again. Django system and migration drift checks passed. Firefox verified the History-tab link, version expansion and explicit restoration action at 1440,390,320 pixels with no horizontal overflow. This feature has no migration. The primary VM and PostgreSQL integration remain unavailable; browser checks use the separate synthetic local SQLite preview. No public push or production deployment is performed.
+
+## PostgreSQL integration follow-up
+
+The subsequent isolated PostgreSQL 17.11 integration completed: all current migrations applied to a fresh synthetic database, the complete DMS suite passed 237 tests with no skips, and browser workflows passed on PostgreSQL. This supersedes the earlier lack of PostgreSQL runtime evidence for this source slice. The original offline VM and its existing data remain untouched and unverified for upgrade. See [POSTGRES_INTEGRATION.md](POSTGRES_INTEGRATION.md) for environment, concurrency, browser and synthetic restore evidence and limits.

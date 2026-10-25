@@ -1,5 +1,5 @@
 {# SPDX-License-Identifier: MPL-2.0 #}
-{% extends 'base.html' %}
+{% extends 'base.html' %}{% load assets %}{% block extra_head %}<link rel="stylesheet" href="{% asset_url 'followups.css' %}">{% endblock %}
 {% block title %}Home{% endblock %}
 {% block content %}
 <section class="home-heading"><h1>What would you like to do?</h1></section>
@@ -16,4 +16,5 @@
   </a>
   {% if member.can_manage_inventory %}<a class="home-action" href="{% url 'deal_create' %}"><div class="action-copy"><h2>Start a deal</h2><p>Choose a vehicle and customer, then save a draft.</p></div><span class="action-arrow" aria-hidden="true">→</span></a><a class="home-action" href="{% url 'customer_create' %}"><div class="action-copy"><h2>Add a customer</h2><p>Start with a name. Contact details are optional.</p></div><span class="action-arrow" aria-hidden="true">→</span></a>{% endif %}
 </div>
+<section class="home-followups"><h2>Your follow-ups</h2>{% if follow_ups %}<ul>{% for task in follow_ups %}<li><a href="{% url 'followup_detail' task.pk %}">{{ task.title }}</a><small>Deal #{{ task.deal_id }} · {% if task.due_on and task.due_on < today %}Overdue: {{ task.due_on|date:'M j' }}{% elif task.due_on %}Due {{ task.due_on|date:'M j' }}{% else %}No due date{% endif %}</small></li>{% endfor %}</ul>{% else %}<p class="muted">No open follow-ups assigned to you.</p>{% endif %}<a href="{% url 'followups' %}">View all follow-ups</a></section>
 {% endblock %}

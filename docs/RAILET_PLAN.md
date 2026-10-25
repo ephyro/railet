@@ -261,3 +261,31 @@ posting is introduced. All module routes remain gated by DEBUG-derived
 DEAL_FILES_DEMO_ENABLED and synthetic-data prerequisites. See
 [DEAL_FILES.md](DEAL_FILES.md) for source applicability/effective-date questions,
 security/retention/storage gates, implementation and verified results.
+
+### Private local feedback (development)
+
+The Feedback module now provides explicit preview-before-save intake and numbered local reports, scoped to their author and dealership owners. It does not transmit reports, collect diagnostics, attach files, or automatically redact free text. Submissions use signed actor/dealership-bound previews and retry protection. See [FEEDBACK.md](FEEDBACK.md) for permissions, privacy/retention limits, checks, and the outstanding PostgreSQL/VM integration verification. No live integration or production gate is enabled.
+
+### Frozen demonstration summaries (development)
+
+Saved drafts can now produce retained synthetic HTML summaries with frozen parties, vehicle/title/mileage, worksheet estimates, active trade, selected proposal, and human completeness reminders. JSON source snapshots and exact HTML bytes are stored with version/hash/provenance; later source edits do not regenerate them. This is not legal paperwork, a reviewed Florida form pack, or deal finalization. No signing, ledger, loan, payment or production workflow is enabled. See [DEMO_PACKETS.md](DEMO_PACKETS.md) for integrity/access boundaries and remaining PostgreSQL/VM verification.
+
+### Draft archive/restore (development)
+
+Drafts can now be put aside and restored with reasons, revision checks and preserved event history. Archived drafts stay readable; worksheet/party/trade edits require restoration. No inventory status, money, customer profile, supporting-file lifecycle or saved packet is altered. Draft event schema 4 records archive metadata; demo packet template v2 explicitly captures active/archived state while existing artifacts remain unchanged. See [DRAFT_ARCHIVING.md](DRAFT_ARCHIVING.md) for verification and pending VM/PostgreSQL integration.
+
+### Internal deal follow-ups (development)
+
+Saved deals now have assignable internal tasks with optional dates, completion/reopening and retained event history. Home shows the signed-in account’s open reminders; the full list is paginated and scoped by dealership. These are not legal deadlines, automated customer communications or collection actions. See [DEAL_FOLLOWUPS.md](DEAL_FOLLOWUPS.md) for authorization, concurrency boundaries, tests and pending PostgreSQL/VM verification.
+
+### PostgreSQL integration and synthetic ledger foundation
+
+An isolated private-socket PostgreSQL 17.11 developer instance now applies all current migrations and passes the 237-test full suite with no skips, including new workflow and ledger concurrency checks. Browser integration and a separate synthetic database/private-file restore exercise passed. The original offline VM disk was not modified; its existing data upgrade is not represented as verified. See [POSTGRES_INTEGRATION.md](POSTGRES_INTEGRATION.md).
+
+The Community finance module now rehearses provenance-backed synthetic opening balances, structurally balanced append-only integer-cent postings, fully unapplied manual receipts, exact linked full receipt reversals and aggregate reconciliation. Signed posting previews, scoped permissions, retry protection and database guards are implemented. No contractual allocations, interest/APR, fees, loan creation, settlement, real money or collections are enabled. Current primary-source review and unresolved effective-date/applicability/professional-review gates are recorded in [LEDGER_FOUNDATION.md](LEDGER_FOUNDATION.md).
+
+
+Development now supports explicit proposed Precomputed/Simple method metadata and separate immutable synthetic schedule illustrations. See SCHEDULE_METHODS.md for primary sources, unresolved applicability/effective-date review, arithmetic assumptions and production gates. APR, payoff/refunds and live servicing remain disabled.
+
+
+Synthetic BHPH account workspace: see [record boundaries and workflow](BHPH_ACCOUNT_WORKSPACE.md). Shared customers, immutable draft context, saved illustrations and unapplied receipt history are integrated. Linking a draft does not originate a loan; live allocation and servicing gates remain unchanged.
