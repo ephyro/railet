@@ -41,3 +41,7 @@ Saved synthetic illustrations retain inputs, outputs, calculation version and a 
 Deal history schema 5 includes the proposed method. New demonstration packets use snapshot schema 3 and template demo-summary-v3; retained earlier artifacts remain unchanged. Calculations and schedules do not post interest, reduce principal, allocate receipts or produce payoff quotes.
 
 Developer verification includes independent arithmetic references, cadence anchoring, final cents, invalid mixed methods, authorization/isolation, stale/tampered previews, immutable records and unchanged ledger postings. Synthetic browser checks covered both methods and 1440/390/320-pixel layouts. This is developer verification, not dealership staff or legal validation.
+
+## Opt-in installment coverage simulation
+
+A saved monthly precomputed illustration may now be explicitly selected as one immutable demo servicing baseline. This is a separate versioned simulation; saving an illustration alone still does not select a baseline or allocate ledger receipts. See [DEMO_SERVICING.md](DEMO_SERVICING.md). Simple-interest servicing, earned-interest splits, refunds and live allocation remain disabled.

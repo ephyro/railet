@@ -19,6 +19,9 @@ from .worksheet import draft_totals
 from .filters import SCHEMA
 from core.filter_views import filter_context
 from inventory.models import VehiclePhoto
+from inventory.inline import InlineVehicleForm,create_inline_vehicle
+from core.models import Dealership
+from .tax_forms import TAX_FIELDS
 
 def records(request):
     return DraftDeal.objects.filter(dealership=request.member.dealership)
@@ -33,7 +36,13 @@ def deal_list(request):
     if scope != "all":
         drafts = drafts.filter(archived_at__isnull=scope == "active")
     page = Paginator(drafts, 25).get_page(request.GET.get("page"))
-    return render(request, "deals/list.html", context(request, **filters, deals=page, page_obj=page, query=query, draft_scope=scope))
+    from urllib.parse import urlencode
+    tabs=[]
+    for value,label in (('active','In progress'),('archived','Archived'),('all','All deals')):
+        parameters={key:list(values) for key,values in state.parameters.items()}
+        parameters['scope']=[value]
+        tabs.append({'query':urlencode(parameters,doseq=True),'label':label,'active':scope==value})
+    return render(request, "deals/list.html", context(request, **filters, deals=page, page_obj=page, query=query, draft_scope=scope, deal_tabs=tabs))
 
 @member_view
 def deal_detail(request, pk):
@@ -49,6 +58,8 @@ def deal_detail(request, pk):
         deal = get_object_or_404(choices, pk=pk)
         if request.method == "POST" and deal.archived_at:
             return render(request, "deals/archived_blocked.html", context(request, deal=deal), status=409)
+        from copy import deepcopy
+        saved_tax=deepcopy(deal.tax_context)
         form = DraftWorksheetForm(
             request.POST if request.method == "POST" else None,
             instance=deal, read_only=not request.member.can_manage_inventory or bool(deal.archived_at),
@@ -75,7 +86,7 @@ def deal_detail(request, pk):
             if form.cleaned_data["revision"] != deal.revision:
                 form.add_error(None, "Someone saved this deal while you were working. Your entries are kept below. Compare them with the latest deal before saving again.")
                 status = 409
-            elif not changed_proposals and not any(name in form.changed_data for name in (*MONEY_FIELDS, "notes", "deal_type")):
+            elif not changed_proposals and saved_tax==deal.tax_context and not any(name in form.changed_data for name in (*MONEY_FIELDS, "notes", "deal_type")):
                 messages.info(request, "This deal is already up to date.")
                 return redirect(reverse("deal_detail", args=[deal.pk]) + "#deal-" + active_section)
             else:
@@ -87,10 +98,11 @@ def deal_detail(request, pk):
     amounts = {name: form.cleaned_data.get(name) if form.is_bound else getattr(deal, name) for name in MONEY_FIELDS}
     totals = draft_totals(amounts) if all(value is not None for value in amounts.values()) else None
     fee_fields, trade_fields = ("tax", "title_registration", "dealer_fee"), ("trade_allowance", "trade_payoff")
+    from finance.account_services import draft_account
     return render(request, "deals/detail.html", context(
-        request, active_trade=deal.trades.filter(archived_at__isnull=True).select_related("inventory_vehicle").first(), trade_intake_enabled=settings.TRADE_INTAKE_DEMO_ENABLED, demo_packets_enabled=settings.DEMO_PACKETS_ENABLED, deal_files_enabled=settings.DEAL_FILES_DEMO_ENABLED,
-        deal=deal, deal_editable=request.member.can_manage_inventory and not deal.archived_at, form=form, proposals=proposals, proposal_errors=any(item["form"].errors for item in proposals), deal_type_label=dict(DealType.choices).get(form["deal_type"].value(), "Not chosen"), events=events, totals=totals, conflict=status == 409, active_section=active_section,
-        fees_open=any(form[name].errors or amounts[name] for name in fee_fields),
+        request, desking_enabled=settings.FL_TAX_ESTIMATES_ENABLED, active_trade=deal.trades.filter(archived_at__isnull=True).select_related("inventory_vehicle").first(), trade_intake_enabled=settings.TRADE_INTAKE_DEMO_ENABLED, demo_packets_enabled=settings.DEMO_PACKETS_ENABLED, deal_files_enabled=settings.DEAL_FILES_DEMO_ENABLED,
+        demo_account=draft_account(dealership_id=request.member.dealership_id, deal_id=deal.pk), deal=deal, deal_editable=request.member.can_manage_inventory and not deal.archived_at, form=form, proposals=proposals, proposal_errors=any(item["form"].errors for item in proposals), deal_type_label=dict(DealType.choices).get(form["deal_type"].value(), "Not chosen"), events=events, totals=totals, conflict=status == 409, active_section=active_section,
+        fees_open=any(form[name].errors for name in fee_fields),
         trade_open=deal.trades.filter(archived_at__isnull=True).exists() or any(form[name].errors or amounts[name] for name in trade_fields),
     ), status=status)
 
@@ -101,6 +113,7 @@ def already_saved(request, deal):
 def editor(request, pk=None):
     require_editor(request)
     with transaction.atomic():
+        if request.method=="POST":Dealership.objects.select_for_update().get(pk=request.member.dealership_id)
         deal = get_object_or_404(records(request).select_for_update(), pk=pk) if pk else DraftDeal(dealership=request.member.dealership)
         if pk and deal.archived_at:
             return render(request, "deals/archived_blocked.html", context(request, deal=deal), status=409)
@@ -116,9 +129,21 @@ def editor(request, pk=None):
                     form.initial[field_name] = selected.pk
         mode = form["customer_mode"].value() or "existing"
         new_customer = CustomerForm(posted if mode == "new" else None, prefix="new", dealership=request.member.dealership)
+        vehicle_mode=form['vehicle_mode'].value() or 'existing'
+        new_vehicle=InlineVehicleForm(posted if vehicle_mode=='new' else None,prefix='newvehicle',dealership=request.member.dealership)
+        proposals=[]
+        existing={p.kind:p for p in deal.finance_proposals.all()} if deal.pk else {}
+        for kind in FINANCING_TYPES:
+            submitted=posted is not None and posted.get(f'{kind}-included')=='1' and posted.get('deal_type')==kind
+            proposal_form=DraftFinanceProposalForm(posted if submitted else None,prefix=kind,instance=existing.get(kind) or DraftFinanceProposal(deal=deal,kind=kind))
+            if not posted and not proposal_form.instance.pk:proposal_form.initial['payment_frequency']='monthly'
+            proposals.append({'kind':kind,'label':DealType(kind).label,'form':proposal_form})
         status = 200
         if request.method == "POST":
             valid = form.is_valid()
+            if vehicle_mode=='new':valid=new_vehicle.is_valid() and valid
+            for proposal in proposals:
+                if proposal['form'].is_bound:valid=proposal['form'].is_valid() and valid
             if mode == "new":
                 valid = new_customer.is_valid() and valid
             creation_key = form.cleaned_data.get("submission_key") if not pk else None
@@ -126,12 +151,17 @@ def editor(request, pk=None):
                 saved = records(request).filter(creation_key=creation_key).first()
                 if saved:
                     return already_saved(request, saved)
+            if valid and form.cleaned_data.get('tax_mode')=='fl':
+                person=new_customer.cleaned_data if mode=='new' else {'region':form.cleaned_data['buyer'].region,'country':form.cleaned_data['buyer'].country}
+                if person.get('region','').strip().upper() not in ('','FL','FLORIDA') or person.get('country','').strip().upper() not in ('','US','USA','UNITED STATES','UNITED STATES OF AMERICA'):
+                    form.add_error('tax_mode','This customer has an out-of-state address. Use manual tax review for this draft.');valid=False
             if pk and valid and form.cleaned_data["revision"] != deal.revision:
                 form.add_error(None, "This draft changed while you were editing. Your entries are preserved. Compare the latest draft before reloading.")
                 valid, status = False, 409
             if valid:
                 try:
                     with transaction.atomic():
+                        if vehicle_mode=="new":deal.vehicle=create_inline_vehicle(new_vehicle,dealership=request.member.dealership,actor=request.user)
                         if mode == "new":
                             deal.buyer = save_customer(new_customer, actor=request.user, dealership=request.member.dealership)
                         else:
@@ -141,21 +171,24 @@ def editor(request, pk=None):
                             deal.revision += 1
                         else:
                             deal.creation_key = creation_key
-                        persist_draft(deal, actor=request.user)
+                        persist_draft(deal, actor=request.user,proposals=[item["form"] for item in proposals if item["form"].is_bound])
+                except ValidationError as error:
+                    form.add_error(None,error.messages)
                 except IntegrityError:
                     if creation_key:
                         saved = records(request).filter(creation_key=creation_key).first()
                         if saved:
                             return already_saved(request, saved)
                     raise
-                messages.success(request, "Draft deal saved. No payment was taken and the vehicle remains in inventory.")
-                return redirect("deal_detail", pk=deal.pk)
+                else:
+                    messages.success(request, "Draft deal saved. No payment was taken and the vehicle remains in inventory.")
+                    return redirect("deal_detail", pk=deal.pk)
     has_worksheet_details = (
         bool(deal.notes)
         or any(getattr(deal, name) for name in MONEY_FIELDS)
         or any(form[name].errors for name in (*MONEY_FIELDS, "notes"))
     )
-    return render(request, "deals/form.html", context(request, form=form, new_customer=new_customer, mode=mode, editing=bool(pk), deal=deal, has_worksheet_details=has_worksheet_details), status=status)
+    return render(request, "deals/form.html", context(request, form=form, new_customer=new_customer, new_vehicle=new_vehicle,vehicle_mode=vehicle_mode,proposals=proposals,desking_enabled=settings.FL_TAX_ESTIMATES_ENABLED,mode=mode, editing=bool(pk), deal=deal, has_worksheet_details=has_worksheet_details), status=status)
 
 @member_view
 def deal_create(request):

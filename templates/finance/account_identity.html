@@ -1,0 +1,2 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% if book %}<div class="payment-context"><strong>{{ book.customer }}</strong><span>BHPH account #{{ book.pk }}</span>{% if book.account_context %}<span>{{ book.account_context.snapshot.vehicle }} · Stock {{ book.account_context.snapshot.stock_number }}</span>{% endif %}</div>{% endif %}

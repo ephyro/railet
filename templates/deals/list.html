@@ -1,18 +1,18 @@
 {# SPDX-License-Identifier: MPL-2.0 #}
 {% extends 'base.html' %}{% load assets %}
-{% block title %}Draft deals{% endblock %}
+{% block title %}Deals{% endblock %}
 {% block extra_head %}<link rel="stylesheet" href="{% asset_url 'filters.css' %}"><link rel="stylesheet" href="{% asset_url 'vehicles.css' %}">{% endblock %}
 {% block content %}
-<section class="page-heading">
-  <h1>Draft deals</h1>
-  <p>Find a saved deal and pick up where you left off.</p>
+<section class="page-heading records-heading">
+  <h1 class="section-title"><span class="section-symbol">{% include 'shared/section_icon.html' with section='deals' %}</span>Deals</h1><p>Vehicle sales and deal preparation.</p>
   {% if member.can_manage_inventory %}<a class="button" href="{% url 'deal_create' %}">+ Start a deal</a>{% endif %}
+<nav class="deal-scopes records-scopes" aria-label="Deal status">{% for tab in deal_tabs %}<a href="?{{ tab.query }}" {% if tab.active %}aria-current="page"{% endif %}>{{ tab.label }}</a>{% endfor %}</nav>
 </section>
-<form class="filters" method="get"><label for="draft-scope">Show drafts<select name="scope" id="draft-scope"><option value="active" {% if draft_scope == 'active' %}selected{% endif %}>Active</option><option value="archived" {% if draft_scope == 'archived' %}selected{% endif %}>Archived</option><option value="all" {% if draft_scope == 'all' %}selected{% endif %}>All</option></select></label><button class="button" type="submit">Show drafts</button></form><section class="panel">
-  {% include 'shared/filter_builder.html' %}
+<section class="panel records-panel">
+  {% include 'shared/filter_builder.html' with compact=True %}
   <div class="table-wrap" tabindex="0" role="region" aria-label="Draft results">
-    <table>
-      <thead><tr><th scope="col">Draft</th><th scope="col">Vehicle</th><th scope="col">Buyer</th><th scope="col">Draft balance</th><th scope="col">Last saved</th></tr></thead>
+    <table class="records-table">
+      <thead><tr><th scope="col">Deal</th><th scope="col">Vehicle</th><th scope="col">Buyer</th><th scope="col">Draft estimate</th><th scope="col">Last saved</th></tr></thead>
       <tbody>
         {% for deal in deals %}
         <tr>
@@ -23,7 +23,7 @@
           <td><time datetime="{{ deal.updated_at|date:'c' }}">{{ deal.updated_at|date:'M j, Y' }}</time><small>{{ deal.updated_at|date:'g:i A' }}</small></td>
         </tr>
         {% empty %}
-        <tr><td colspan="5">{% if query %}No drafts match “{{ query }}”. Try a different name, stock number or VIN.{% else %}No draft deals yet.{% if member.can_manage_inventory %} <a href="{% url 'deal_create' %}">Start a deal</a>.{% endif %}{% endif %}</td></tr>
+        <tr><td colspan="5">{% if query %}No drafts match “{{ query }}”. Try a different name, stock number or VIN.{% else %}No deals saved yet.{% if member.can_manage_inventory %} <a href="{% url 'deal_create' %}">Start a deal</a>.{% endif %}{% endif %}</td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -33,3 +33,11 @@ id_rsa*
 Removed
 b23aaa06a88a
 facd9c42f190
+
+# Private saved vendor reference pages and their asset directories
+/DealerCenter*.html
+/DealerCenter*_files/
+/Deal Reports.html
+/Deal Reports_files/
+/BHPH Reports.html
+/BHPH Reports_files/

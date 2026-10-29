@@ -32,3 +32,22 @@ Focused PostgreSQL regression run: 66 tests passed across finance, customer work
 
 
 BHPH workspace verification: the complete PostgreSQL suite passed **273 tests** in 124.795 seconds, with no skips. Synthetic account/browser evidence is retained privately under `.local/account-review/`.
+
+## Open directly from a saved BHPH draft
+
+An active BHPH draft now offers **Open a demo BHPH account from this draft**. Customer and vehicle come from the saved authoritative records; staff enter an explicit invented opening amount, effective date and source, then review the proposed facts and financial consequences before confirming. No amount is prefilled from the worksheet and no real customer debt is inferred.
+
+Confirmation atomically creates the synthetic book, its balanced opening journal entry, and the frozen draft context. Any failure rolls back all three. Actor/dealership/draft-bound previews expire after 30 minutes. The service locks the dealership and draft, rechecks proposed facts, and rejects stale previews. Repeating a completed request returns its original account even if later draft edits occur; a reused request key with changed opening facts is rejected.
+
+A draft can be linked to only one demo account. This is an anti-duplication product rule, not a lending rule. It is enforced by a database uniqueness constraint and by both the original linking interface and new opening service. Existing duplicate links would cause the migration to fail rather than silently delete or merge financial records; reconcile them explicitly before retrying a deployment. The current synthetic database was checked and contained no duplicate links.
+
+After creation the draft links directly to its saved account. The account's existing schedule, payment preview, private receipt and linked-correction workflows remain available. Creating the account does not finalize the draft, originate a loan, generate reviewed legal paperwork, mark inventory sold or record a payment. The live-servicing and legal-review boundaries above remain unchanged.
+
+
+October 26 draft-opening verification: the complete PostgreSQL suite passed 285 tests in 111.229 seconds with no skips, including same-key and distinct-key concurrent opening cases. Ten focused SQLite tests passed. Synthetic browser checks covered draft → reviewed opening → account navigation at 1440/390/320 pixels; no outer page overflow was found. These are developer checks, not staff or legal validation. Private evidence: `.local/draft-opening-review/`.
+
+Account discovery now supports customer, recorded vehicle, stock/VIN and exact account-number search, quick linked/unlinked scopes, advanced rules and private saved views using the shared filter engine. See [account search](ACCOUNT_SEARCH.md) for read boundaries and verification scope.
+
+A private account export is now available from Account figures. See [portable account export](ACCOUNT_EXPORT.md) for exact JSON/CSV scope, snapshot consistency, privacy, file hashes and the append-only export audit. It is not a complete dealership backup or legal statement.
+
+The account list also links to a dealership-wide [synthetic payment register](PAYMENT_REGISTER.md). It separates recorded/effective dates and shows receipts, corrections and net activity for a selected range without treating that net as a balance or settlement.

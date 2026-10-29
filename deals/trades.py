@@ -17,6 +17,7 @@ def save_trade(form, *, deal, actor):
         raise ValidationError("Choose an active trade from this draft.")
     trade.full_clean()
     trade.save()
+    if deal.tax_context.get("mode")=="fl":deal.tax_context={**deal.tax_context,"trade_confirmed":form.cleaned_data.get("tax_trade_confirmed",False)}
     deal.trade_allowance = form.cleaned_data["trade_allowance"]
     deal.trade_payoff = form.cleaned_data["trade_payoff"]
     deal.revision += 1
@@ -28,7 +29,7 @@ def save_trade(form, *, deal, actor):
 def remove_trade(trade, *, deal, actor, reason):
     if trade.deal_id != deal.pk or trade.archived_at:
         raise ValidationError("Choose an active trade from this draft.")
-    if deal.draft_balance + deal.trade_allowance - deal.trade_payoff < 0:
+    if balance_without_trade(deal) < 0:
         raise ValidationError("Removing this trade would make the draft balance negative. Adjust the planned down payment or other amounts first.")
     trade.archived_at = timezone.now()
     trade.save(update_fields=["archived_at", "updated_at"])
@@ -61,3 +62,11 @@ def intake_trade(trade, *, deal, actor, data):
     deal.revision += 1
     persist_draft(deal, actor=actor, action="trade_intake")
     return vehicle
+
+
+def balance_without_trade(deal):
+    from copy import copy
+    from .florida_tax import refresh
+    preview=copy(deal);preview.trade_allowance=preview.trade_payoff=Decimal('0.00')
+    refresh(preview)
+    return preview.draft_balance

@@ -1,6 +1,6 @@
 {# SPDX-License-Identifier: MPL-2.0 #}
-<div class="field">
-  {{ field.label_tag }}{{ field }}
+<div class="field{% if field.field.widget.input_type == 'checkbox' %} field-checkbox{% endif %}">
+  {% if field.field.widget.input_type == 'checkbox' %}<label for="{{ field.id_for_label }}">{{ field }}<span>{{ field.label }}</span></label>{% else %}<div class="field-label">{{ field.label_tag }}{% if field.field.required %}<span class="field-requirement">Required</span>{% endif %}</div>{{ field }}{% endif %}
   {% if field.help_text %}<small id="{{ field.auto_id }}_helptext">{{ field.help_text }}</small>{% endif %}
   {{ field.errors }}
 </div>

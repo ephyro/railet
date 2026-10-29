@@ -12,6 +12,8 @@ def persist_draft(deal, *, actor, proposals=(), action="draft_saved", reason="")
         from .models import DraftDeal
         if DraftDeal.objects.filter(pk=deal.pk, archived_at__isnull=False).exists():
             raise ValidationError("Restore this archived draft before changing it.")
+    from .florida_tax import refresh
+    if action not in ("draft_archived","draft_restored"):refresh(deal)
     deal.full_clean(exclude=["creation_key"])
     deal.save()
     for form in proposals:
@@ -28,13 +30,14 @@ def persist_draft(deal, *, actor, proposals=(), action="draft_saved", reason="")
         values = {}
         for name in PROPOSAL_FIELDS:
             value = getattr(proposal, name)
-            values[name] = value.isoformat() if name == "first_payment_date" and value else str(value) if name == "annual_contract_rate" and value is not None else value
+            values[name] = value.isoformat() if name == "first_payment_date" and value else str(value) if name in ("annual_contract_rate","illustration_finance_charge") and value is not None else value
         snapshots[proposal.kind] = values
     DealEvent.objects.create(
         deal=deal,
         actor=actor,
         snapshot={
-            "schema_version": 5,
+            "schema_version": 6,
+            "tax_context": deal.tax_context,
             "archived_at": deal.archived_at.isoformat() if deal.archived_at else None,
             "archived_by_id": deal.archived_by_id,
             "archive_reason": deal.archive_reason,

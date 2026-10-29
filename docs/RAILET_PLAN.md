@@ -289,3 +289,45 @@ Development now supports explicit proposed Precomputed/Simple method metadata an
 
 
 Synthetic BHPH account workspace: see [record boundaries and workflow](BHPH_ACCOUNT_WORKSPACE.md). Shared customers, immutable draft context, saved illustrations and unapplied receipt history are integrated. Linking a draft does not originate a loan; live allocation and servicing gates remain unchanged.
+
+Synthetic BHPH workflow follow-up: account setup can begin directly from a saved BHPH draft, reuse its canonical customer/vehicle and capture proposed terms in the same transaction as an explicitly sourced invented opening. One account per draft prevents duplicate openings; no worksheet-to-debt conversion or contract finalization is enabled. See BHPH_ACCOUNT_WORKSPACE.md for workflow and migration controls.
+
+Synthetic account portability follow-up: authorized account exports include the full bounded journal, frozen draft context, saved illustration inputs/results and a file-hash manifest. Export preparation is audited and shares the financial book lock for a coherent capture. This narrowly scoped account download does not fulfill complete dealership export/restore or activate live servicing; see ACCOUNT_EXPORT.md.
+
+Customer-data follow-up: optional contact addresses are stored once and reused in deal/account views; new versioned demo packets freeze buyer/co-buyer addresses. Address entry is not verification, residency or tax-jurisdiction determination, contact consent or legal completeness. No external validation service or live document behavior is enabled. See CUSTOMER_ADDRESSES.md.
+
+Monthly precomputed synthetic servicing follow-up: accounts may explicitly select one immutable monthly precomputed illustration as a versioned installment-coverage baseline. Partial/early/extra receipts and full corrections are projected against oldest installments, with an as-of date and record capture timestamp. Due/past-due/due-today statuses are labeled Demo; missing or invalid baselines remain neutral. Authoritative ledger receipts remain unapplied and principal is unchanged. No actual loan, earned-interest allocation, statutory delinquency, fee, payoff or collection instruction is enabled. See [DEMO_SERVICING.md](DEMO_SERVICING.md) for assumptions, source review and remaining production gates.
+
+Daily payments follow-up: the existing synthetic payment register now exposes
+receipts, linked reversals, net activity and manually recorded payment methods
+under BHPH. Unknown historical methods remain Not recorded; new reversals retain
+the original method. Account export v4 includes the method. This is not cash-drawer
+or bank reconciliation and enables no real payment activity. See PAYMENT_REGISTER.md.
+
+BHPH worklist follow-up: status shortcuts and oldest-overdue ordering apply the
+existing synthetic installment simulation across matching accounts before
+pagination, with bounded scans and explicit unknown status. Next unpaid dates and
+a direct Record payment action keep common work near the account row. No live
+collections, contractual delinquency or allocation rule is introduced. See
+DEMO_SERVICING.md for capture/locking limits and verification.
+
+Printable synthetic receipt follow-up: the existing private receipt view supports
+browser print/save-PDF with exact journal facts, verified frozen vehicle context
+and linked reversal evidence. The sheet preserves explicit demo labels and
+identifies current customer/workspace display names; it is not a stored or legally
+reviewed receipt artifact. See PRINTABLE_RECEIPTS.md for scope and verification.
+
+### Draft desking, Florida tax and inline vehicle entry (October 29, 2026)
+
+Deal type is prominent during creation and on the saved desk. Creation includes
+visible pricing, selected financing terms, a server-backed estimate and an
+inventory-owned inline vehicle path alongside inline customer entry. Creation
+serializes dealer scope and rolls vehicle/customer/deal/audits back together;
+retries return one saved draft. Unknown title/mileage facts remain unknown.
+Automatic draft tax is limited to a dated 2026 Florida-resident single-vehicle
+retail profile, with explicit registration county and qualification assertions.
+Existing manual tax/history/artifacts remain preserved. Precomputed charges and
+equal-monthly simple-interest illustrations are explicitly distinct; neither is
+APR, actual daily accrual, a live loan or tax filing. See FLORIDA_DRAFT_TAX.md for
+primary authorities, effective-date scope, unresolved rule/professional review,
+provenance and verification. Community/enterprise and production gates are unchanged.

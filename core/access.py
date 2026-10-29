@@ -17,7 +17,7 @@ def member_view(view):
     return wrapped
 
 def context(request, **kwargs):
-    return {"member": request.member, "demo_accounts_enabled": getattr(settings, "DEMO_LEDGER_ENABLED", False), **kwargs}
+    return {"member": request.member, "demo_accounts_enabled": getattr(settings, "DEMO_LEDGER_ENABLED", False), "demo_servicing_enabled": getattr(settings,"DEMO_SERVICING_ENABLED",False) and getattr(settings,"DEMO_LEDGER_ENABLED",False), **kwargs}
 
 def require_editor(request):
     if request.member.role not in (Membership.Role.OWNER, Membership.Role.STAFF):

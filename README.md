@@ -12,12 +12,14 @@ We're building in public and welcome developers, dealership staff, and IT operat
 
 - Inventory with stock/VIN search, title brands, odometer details, costs, private photos, and duplicate VIN review.
 - Shared customer records reused across buyers, co-buyers, and draft deals.
-- A deal workspace with itemized draft amounts, trades, optional financing proposals, saved history, and a read-only review.
+- A deal desk with visible deal type, inline vehicle/customer entry, pricing, trades, financing proposals, monthly payment illustrations, saved history, and a read-only review.
+- Automatic 2026 Florida draft tax estimates using the purchaser’s registration county, with explicit trade/fee controls and manual review for special cases.
+- Synthetic BHPH accounts with opt-in monthly installment coverage, status filters, unapplied receipts, linked reversals, daily payment summaries, private account exports, and printable demo receipts.
 - Private supporting PDFs with authorized downloads, archive/restore, and upload retry protection in development.
 - Reusable filters, sorting, pagination, and personal saved views.
 - Dealership scoping, owner/staff/viewer roles, revision checks, and transactional change records.
 
-Draft amounts are estimates. Manually entered taxes and fees are not legal calculations. Saving a draft does not sell or reserve a vehicle, create a contract or loan, or record money received. Supporting PDFs are stored as uploaded; they are not scanned or verified. Audit records are not protected from privileged direct database modification.
+Draft amounts and payment illustrations are estimates. Florida tax estimation has a narrow researched 2026 profile; manual overrides require a reason. Professional tax/legal review remains required before live use. Monthly payment illustrations are not APR disclosures or contractual daily accrual; synthetic receipts remain unapplied and do not reduce principal. Saving a draft does not sell or reserve a vehicle, create a contract or loan, or record money received. Supporting PDFs are stored as uploaded; they are not scanned or verified. Audit records are not protected from privileged direct database modification.
 
 ## Try the development build
 
@@ -36,6 +38,8 @@ Open http://localhost:8000. Sign in as `demo` using the password you chose at th
 Code edits reload during development. Stop with `docker compose down`; database and private upload volumes persist. Adding `-v` deletes those volumes.
 
 See [development setup](docs/DEVELOPMENT.md) for local Python, tests, migrations, and architecture. Optional [VM setup](docs/DEVELOPMENT_VM.md) and [staging rehearsal](docs/STAGING_VM.md) are development tools, not a production deployment guide.
+
+For the synthetic workflows, see the [BHPH walkthrough](docs/BHPH_DEMO_WALKTHROUGH.md), [deal desking and Florida tax scope](docs/FLORIDA_DRAFT_TAX.md), and [staff usability session](docs/STAFF_WORKFLOW_TEST.md).
 
 ## Help build it
 
@@ -88,3 +92,5 @@ Draft financing proposals support explicit Precomputed or Simple interest select
 
 
 [BHPH account workspace](docs/BHPH_ACCOUNT_WORKSPACE.md) brings linked draft context, customer/vehicle identification, schedule illustrations and synthetic payment receipts together. Development only; recorded demo funds remain unapplied.
+
+Monthly precomputed accounts also support an explicit [demo servicing baseline](docs/DEMO_SERVICING.md): simulate installment coverage, partial/extra payments, reversals, and labeled red/green due status against a retained schedule. Receipts remain unapplied in the ledger. No live servicing, principal/earned-interest allocation, payoff or legal readiness is implied.

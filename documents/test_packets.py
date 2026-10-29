@@ -160,3 +160,26 @@ class DemoPacketTests(TestCase):
         self.assertEqual(packet.snapshot['proposal']['Proposed interest method'],'Precomputed')
         artifact=self.client.get(reverse('demo_packet_artifact',args=[self.deal.pk,packet.pk]))
         self.assertContains(artifact,'Precomputed')
+
+    def test_buyer_and_co_buyer_addresses_are_frozen_in_new_packet(self):
+        self.buyer.address_line1='123 Synthetic Lane';self.buyer.city='Demo City';self.buyer.save()
+        co=Customer.objects.create(dealership=self.dealer,first_name='Casey',last_name='Demo',address_line1='456 Other Synthetic Lane')
+        self.deal.co_buyer=co;self.deal.save()
+        self.assertContains(self.client.get(self.url),'123 Synthetic Lane')
+        self.assertContains(self.client.get(self.url),'456 Other Synthetic Lane')
+        self.assertEqual(self.save().status_code,302)
+        packet=DemoDealPacket.objects.get()
+        self.assertEqual(packet.template_version,'demo-summary-v5')
+        self.assertEqual(packet.snapshot['schema_version'],5)
+        self.assertEqual(packet.snapshot['buyer']['address']['city'],'Demo City')
+        self.assertEqual(packet.snapshot['co_buyer']['address']['address_line1'],'456 Other Synthetic Lane')
+        self.buyer.address_line1='Changed later';self.buyer.save();co.address_line1='Also changed';co.save()
+        artifact=self.client.get(reverse('demo_packet_artifact',args=[self.deal.pk,packet.pk]))
+        self.assertContains(artifact,'123 Synthetic Lane')
+        self.assertContains(artifact,'456 Other Synthetic Lane')
+        self.assertNotContains(artifact,'Changed later')
+
+    def test_address_edit_after_preview_requires_a_new_packet_preview(self):
+        token=self.token();self.buyer.city='Changed address fact';self.buyer.save()
+        self.assertEqual(self.save(token).status_code,409)
+        self.assertFalse(DemoDealPacket.objects.exists())

@@ -30,6 +30,12 @@ class DemoPosting(models.Model):
         OPENING_OFFSET = 'opening_offset','Opening offset'
         CASH = 'cash_control','Cash control (not settlement)'
         UNAPPLIED = 'unapplied','Unapplied receipts'
+    class PaymentMethod(models.TextChoices):
+        UNSPECIFIED = 'unspecified','Not recorded'
+        CASH = 'cash','Cash'
+        CHECK = 'check','Check'
+        OTHER = 'other','Other'
+    payment_method = models.CharField(max_length=16,choices=PaymentMethod.choices,default=PaymentMethod.UNSPECIFIED)
     book = models.ForeignKey(DemoBook, on_delete=models.PROTECT, related_name='postings')
     kind = models.CharField(max_length=12, choices=Kind.choices)
     amount_cents = models.BigIntegerField()
@@ -81,3 +87,35 @@ class DemoAccountContext(models.Model):
     snapshot_sha256 = models.CharField(max_length=64)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['deal'], name='one_demo_account_per_draft')]
+
+
+class DemoAccountExport(models.Model):
+    book = models.ForeignKey(DemoBook, on_delete=models.PROTECT, related_name='export_events')
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+    format_version = models.CharField(max_length=40, default='demo-account-export-v4')
+    bundle_sha256 = models.CharField(max_length=64)
+    bundle_bytes = models.PositiveIntegerField()
+    posting_count = models.PositiveIntegerField()
+    schedule_count = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ['-created_at', '-pk']
+
+
+class DemoServicingPlan(models.Model):
+    """Explicit immutable simulation baseline, not an originated contract."""
+    book = models.OneToOneField(DemoBook,on_delete=models.PROTECT,related_name='servicing_plan')
+    schedule = models.ForeignKey(DemoSchedule,on_delete=models.PROTECT)
+    schedule_sha256 = models.CharField(max_length=64)
+    policy_version = models.CharField(max_length=40,default='monthly-oldest-first-v1',editable=False)
+    reason = models.CharField(max_length=300)
+    creation_key = models.UUIDField(default=uuid.uuid4,unique=True,editable=False)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints=[models.CheckConstraint(condition=models.Q(policy_version='monthly-oldest-first-v1'),name='demo_servicing_policy_known')]

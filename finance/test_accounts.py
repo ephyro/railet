@@ -50,7 +50,7 @@ class AccountWorkspaceTests(TestCase):
     def test_workspace_has_clear_empty_states_and_never_infers_a_draft(self):
         response=self.client.get(self.url)
         self.assertContains(response,'No vehicle linked.')
-        self.assertContains(response,'Record demo payment')
+        self.assertContains(response,'Record payment')
         self.assertContains(response,'No payments recorded.')
         self.assertContains(response,'$1,000.00')
         self.assertFalse(DemoAccountContext.objects.exists())
@@ -112,7 +112,7 @@ class AccountWorkspaceTests(TestCase):
         self.assertContains(self.client.get(url),'Unapplied')
         reverse_receipt(dealership_id=self.dealer.pk,book_id=self.book.pk,posting_id=posting.pk,actor=self.users['staff'],effective_on=date(2026,2,2),reason='Synthetic full correction',request_key=uuid4())
         response=self.client.get(url)
-        self.assertContains(response,'Corrected in full')
+        self.assertContains(response,'Reversed in full')
         self.assertContains(response,'$125.50')
         self.assertContains(response,'Synthetic full correction')
         workspace=self.client.get(self.url)
@@ -160,3 +160,15 @@ class AccountWorkspaceTests(TestCase):
         second=self.client.get(self.url+'?page=2')
         self.assertEqual(len(second.context['rows']),1)
         self.assertEqual(second.context['unapplied'],'$21.00')
+
+    def test_overview_does_not_present_unapplied_funds_as_amount_due_or_lateness(self):
+        self.receipt()
+        response = self.client.get(self.url)
+        overview = response.content.decode().split('aria-label="Payment overview">', 1)[1].split('</section>', 1)[0]
+        self.assertIn('Amount due', overview)
+        self.assertIn('Not calculated', overview)
+        self.assertIn('Late status', overview)
+        self.assertIn('Not assessed', overview)
+        self.assertNotIn('$', overview)
+        self.assertContains(response, '$125.50')
+        self.assertContains(response, '$1,000.00')

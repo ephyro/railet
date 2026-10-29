@@ -3,19 +3,18 @@
 {% block title %}Customers{% endblock %}
 {% block extra_head %}<link rel="stylesheet" href="{% asset_url 'filters.css' %}">{% endblock %}
 {% block content %}
-<section class="page-heading">
+<section class="page-heading records-heading">
   <h1>Customers</h1>
-  <p>One record for each person, shared across their deals.</p>
   {% if member.can_manage_inventory %}<a class="button" href="{% url 'customer_create' %}">+ Add customer</a>{% endif %}
 </section>
-<section class="panel">
-  {% include 'shared/filter_builder.html' %}
+<section class="panel records-panel">
+  {% include 'shared/filter_builder.html' with compact=True %}
   <div class="table-wrap" tabindex="0" role="region" aria-label="Customer results">
-    <table>
+    <table class="records-table">
       <thead><tr><th scope="col">Name</th><th scope="col">Phone</th><th scope="col">Email</th></tr></thead>
       <tbody>
         {% for customer in customers %}
-        <tr><td><a href="{% url 'customer_detail' customer.pk %}">{{ customer }}</a><small>Customer #{{ customer.pk }}</small></td><td>{{ customer.phone|default:'Not provided' }}</td><td>{{ customer.email|default:'Not provided' }}</td></tr>
+        <tr><td><a href="{% url 'customer_detail' customer.pk %}">{{ customer }}</a></td><td>{{ customer.phone|default:'Not provided' }}</td><td>{{ customer.email|default:'Not provided' }}</td></tr>
         {% empty %}
         <tr><td colspan="3">{% if query %}No customers match “{{ query }}”. Try a different name, phone or email.{% else %}No customers yet.{% if member.can_manage_inventory %} <a href="{% url 'customer_create' %}">Add a customer</a>.{% endif %}{% endif %}</td></tr>
         {% endfor %}

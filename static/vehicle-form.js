@@ -15,6 +15,31 @@
   const update = () => {
     if (status) status.textContent = submitting ? 'Saving…' : dirty() ? 'Unsaved changes' : (form.dataset.cleanStatus || '');
   };
+  const reveal = field => {
+    for (let parent = field.parentElement; parent && parent !== form; parent = parent.parentElement) {
+      if (parent.tagName === 'DETAILS') parent.open = true;
+    }
+  };
+  form.addEventListener('focusin', event => {
+    const actions = form.querySelector('.entry-actions');
+    if (!actions || actions.contains(event.target)) return;
+    requestAnimationFrame(() => {
+      const field = event.target.getBoundingClientRect();
+      const bar = actions.getBoundingClientRect();
+      if (field.bottom > bar.top && field.top < bar.bottom) {
+        event.target.scrollIntoView({block: 'center'});
+      }
+    });
+  });
+  form.addEventListener('invalid', event => { reveal(event.target); }, true);
+  form.querySelectorAll('[data-error-summary] a[href^="#"]').forEach(link => {
+    link.addEventListener('click', event => {
+      const field = document.getElementById(link.hash.slice(1));
+      if (field && form.contains(field)) {
+        event.preventDefault(); reveal(field); field.focus();
+      }
+    });
+  });
   form.addEventListener('input', update);
   form.addEventListener('change', update);
   form.addEventListener('submit', () => {

@@ -1,4 +1,31 @@
 {# SPDX-License-Identifier: MPL-2.0 #}
-{% extends 'base.html' %}{% load assets %}{% block title %}Demo receipt #{{ posting.pk }}{% endblock %}{% block extra_head %}<link rel="stylesheet" href="{% asset_url 'account-workspace.css' %}">{% endblock %}{% block content %}
-<section class="page-heading"><a href="{% url 'bhph_account' book.pk %}">Back to account</a><h1>Demo receipt #{{ posting.pk }}</h1><p>Synthetic evaluation only. No real funds received or processed.</p></section>
-<section class="account-section"><h2>{{ amount }}</h2><p>{% if posting.reversal %}<strong>Corrected in full</strong> by entry #{{ posting.reversal.pk }} on {{ posting.reversal.effective_on|date:'M j, Y' }}. Original amount retained below.{% else %}<strong>Unapplied</strong> — no principal, interest or fee allocation.{% endif %}</p><dl><dt>Account</dt><dd>{{ book.label }} #{{ book.pk }}</dd><dt>Customer record</dt><dd>#{{ book.customer_id }} · <a href="{% url 'customer_detail' book.customer_id %}">{{ book.customer }}</a> (current profile)</dd><dt>Effective date</dt><dd>{{ posting.effective_on|date:'M j, Y' }}</dd><dt>Entered</dt><dd>{{ posting.entered_at|date:'M j, Y · g:i A' }}</dd><dt>Recorded by</dt><dd>{{ posting.actor.get_username }} · User #{{ posting.actor_id }}</dd><dt>Reference</dt><dd>{{ posting.reason }}</dd></dl>{% if posting.reversal %}<p>Correction reason: {{ posting.reversal.reason }}</p>{% elif member.can_manage_inventory %}<a href="{% url 'ledger_demo_reverse' book.pk posting.pk %}">Review a correction</a>{% endif %}<p>This view reads the retained journal entry. It is not a customer statement, bank settlement record or payoff quote.</p></section>{% endblock %}
+{% extends 'base.html' %}{% load assets %}
+{% block title %}Demo receipt #{{ posting.pk }}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset_url 'receipt.css' %}">{% endblock %}
+{% block content %}
+<div class="receipt-screen-tools">
+  <a href="{% url 'bhph_account' book.pk %}">Back to BHPH account #{{ book.pk }}</a>
+  <div class="receipt-actions"><button type="button" class="button" data-print-receipt hidden>Print receipt</button><a href="{% url 'bhph_account' book.pk %}#payment-history">View payment history</a>{% if member.can_manage_inventory %}<a href="{% url 'ledger_demo_receipt' book.pk %}">Record another demo payment</a>{% endif %}</div>
+  <p data-print-help role="status" hidden></p><noscript><p>Use your browser’s Print menu to print this receipt or save it as a PDF.</p></noscript>
+</div>
+<article class="receipt-sheet" aria-labelledby="receipt-title">
+  <header class="receipt-sheet-header"><span class="receipt-wordmark">railet.</span><span>{{ member.dealership.name }}<small>Current workspace</small></span></header>
+  <p class="receipt-demo-mark">Demonstration only · No real funds received or processed</p>
+  <div class="receipt-heading"><h1 id="receipt-title">Demo receipt #{{ posting.pk }}</h1><strong class="receipt-amount">{{ amount }} <small>USD</small></strong></div>
+  <p class="receipt-standing{% if posting.reversal %} receipt-reversed{% endif %}">{% if posting.reversal %}<strong>Reversed in full</strong> by entry #{{ posting.reversal.pk }}. Original amount retained below. This is a linked accounting correction, not a refund.{% else %}<strong>Unapplied</strong> — no principal, interest or fee allocation.{% endif %}</p>
+  <dl class="receipt-facts">
+    <div><dt>Customer (current profile)</dt><dd><a href="{% url 'customer_detail' book.customer_id %}">{{ book.customer }}</a><small>Customer #{{ book.customer_id }}</small></dd></div>
+    <div><dt>BHPH account</dt><dd>#{{ book.pk }}<small>{{ book.label }}</small></dd></div>
+    <div><dt>Vehicle</dt><dd>{% if account %}{{ account.snapshot.vehicle }}<small>Stock {{ account.snapshot.stock_number }} · As saved when linked</small>{% else %}No vehicle linked{% endif %}</dd></div>
+    <div><dt>Payment method</dt><dd>{{ posting.get_payment_method_display }}</dd></div>
+    <div><dt>Effective date</dt><dd>{{ posting.effective_on|date:'M j, Y' }}</dd></div>
+    <div><dt>Entered</dt><dd>{{ posting.entered_at|date:'M j, Y · g:i A' }}<small>{{ display_zone }}</small></dd></div>
+    <div><dt>Recorded by</dt><dd>{{ posting.actor.get_username }}<small>User #{{ posting.actor_id }}</small></dd></div>
+    <div class="receipt-wide"><dt>Reference</dt><dd>{{ posting.reason }}</dd></div>
+  </dl>
+  {% if posting.reversal %}<section id="reversal" class="receipt-reversal"><h2>Linked reversal #{{ posting.reversal.pk }}</h2><p>{{ amount }} reversed in full. The original receipt remains unchanged.</p><dl class="receipt-facts"><div class="receipt-wide"><dt>Reason</dt><dd>{{ posting.reversal.reason }}</dd></div><div><dt>Effective date</dt><dd>{{ posting.reversal.effective_on|date:'M j, Y' }}</dd></div><div><dt>Entered</dt><dd>{{ posting.reversal.entered_at|date:'M j, Y · g:i A' }}<small>{{ display_zone }}</small></dd></div><div><dt>Reversed by</dt><dd>{{ posting.reversal.actor.get_username }}<small>User #{{ posting.reversal.actor_id }}</small></dd></div></dl></section>{% endif %}
+  <footer class="receipt-sheet-footer"><p>Synthetic evaluation only. Not a customer statement, bank settlement record or payoff quote. No real payment or refund is represented.</p><p>View generated {{ captured_at|date:'M j, Y · g:i:s A' }} ({{ display_zone }}). Contact and display names reflect current records; the posting and linked vehicle facts are retained. This print view is not a stored receipt snapshot.</p></footer>
+</article>
+{% if member.can_manage_inventory and not posting.reversal %}<p class="receipt-screen-tools"><a href="{% url 'ledger_demo_reverse' book.pk posting.pk %}">Reverse payment</a></p>{% endif %}
+<script defer src="{% asset_url 'receipt.js' %}"></script>
+{% endblock %}

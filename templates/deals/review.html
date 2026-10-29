@@ -48,7 +48,7 @@
     <p class="review-record-name"><a href="{% url 'customer_detail' deal.buyer_id %}">{{ deal.buyer }}</a></p>
     <dl class="review-facts review-contact">
       <dt>Phone</dt><dd>{% if deal.buyer.phone %}{{ deal.buyer.phone }}{% else %}Not recorded{% endif %}</dd>
-      <dt>Email</dt><dd>{% if deal.buyer.email %}{{ deal.buyer.email }}{% else %}Not recorded{% endif %}</dd>
+      <dt>Email</dt><dd>{% if deal.buyer.email %}{{ deal.buyer.email }}{% else %}Not recorded{% endif %}</dd><dt>Contact address as recorded</dt><dd>{% for line in deal.buyer.address_lines %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% empty %}Not entered{% endfor %}</dd>
     </dl>
   </section>
 
@@ -62,7 +62,7 @@
       <p class="review-record-name"><a href="{% url 'customer_detail' deal.co_buyer_id %}">{{ deal.co_buyer }}</a></p>
       <dl class="review-facts review-contact">
         <dt>Phone</dt><dd>{% if deal.co_buyer.phone %}{{ deal.co_buyer.phone }}{% else %}Not recorded{% endif %}</dd>
-        <dt>Email</dt><dd>{% if deal.co_buyer.email %}{{ deal.co_buyer.email }}{% else %}Not recorded{% endif %}</dd>
+        <dt>Email</dt><dd>{% if deal.co_buyer.email %}{{ deal.co_buyer.email }}{% else %}Not recorded{% endif %}</dd><dt>Contact address as recorded</dt><dd>{% for line in deal.co_buyer.address_lines %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% empty %}Not entered{% endfor %}</dd>
       </dl>
     {% else %}
       <p class="review-unknown">No co-buyer is assigned to this draft.</p>

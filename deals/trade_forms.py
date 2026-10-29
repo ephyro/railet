@@ -6,6 +6,7 @@ from .worksheet import draft_totals
 
 
 class TradeInForm(forms.ModelForm):
+    tax_trade_confirmed=forms.BooleanField(required=False,label="Trade is accepted for resale in this same transaction (tax credit)")
     revision = forms.IntegerField(min_value=1, widget=forms.HiddenInput)
     trade_allowance = forms.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"), label="Trade allowance")
     trade_payoff = forms.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"), label="Estimated payoff")
@@ -26,6 +27,7 @@ class TradeInForm(forms.ModelForm):
     def __init__(self, *args, deal, **kwargs):
         self.deal = deal
         super().__init__(*args, **kwargs)
+        self.initial['tax_trade_confirmed']=deal.tax_context.get('trade_confirmed',False)
         self.initial.update(revision=deal.revision, trade_allowance=deal.trade_allowance, trade_payoff=deal.trade_payoff)
         self.fields["payoff_good_through"].input_formats = ["%Y-%m-%d"]
         if self.instance.inventory_vehicle_id:
@@ -37,9 +39,19 @@ class TradeInForm(forms.ModelForm):
 
     def clean(self):
         data = super().clean()
+        if self.deal.tax_context.get('mode')=='fl' and data.get('trade_allowance') and not data.get('tax_trade_confirmed'):
+            self.add_error('tax_trade_confirmed','Confirm the qualifying trade before applying its Florida tax credit.')
         amounts = {name: getattr(self.deal, name) for name in ("sale_price", "tax", "title_registration", "dealer_fee", "down_payment")}
         if all(data.get(name) is not None for name in ("trade_allowance", "trade_payoff")):
             amounts.update({name: data[name] for name in ("trade_allowance", "trade_payoff")})
+            if self.deal.tax_context.get('mode')=='fl' and not self.errors:
+                from copy import copy
+                from .florida_tax import refresh
+                from django.core.exceptions import ValidationError
+                preview=copy(self.deal);preview.trade_allowance=data['trade_allowance'];preview.trade_payoff=data['trade_payoff']
+                preview.tax_context={**self.deal.tax_context,'trade_confirmed':data.get('tax_trade_confirmed',False)}
+                try:refresh(preview);amounts['tax']=preview.tax
+                except ValidationError as error:self.add_error(None,error)
             if draft_totals(amounts)["balance"] < 0:
                 self.add_error(None, "These trade amounts make the draft balance negative. Check the allowance, payoff and planned down payment.")
         return data

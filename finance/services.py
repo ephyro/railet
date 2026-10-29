@@ -85,17 +85,18 @@ def open_book(*,dealership_id,customer_id,actor,label,source_reference,opening_o
 
 
 @transaction.atomic
-def record_receipt(*,dealership_id,book_id,actor,amount,effective_on,reason,request_key):
+def record_receipt(*,dealership_id,book_id,actor,amount,effective_on,reason,request_key,payment_method=DemoPosting.PaymentMethod.UNSPECIFIED):
     require_demo();require_member(actor,dealership_id)
     amount=cents(amount);reason=text(reason,'Synthetic receipt reference',300);request_key=key(request_key)
+    if payment_method not in DemoPosting.PaymentMethod.values:raise LedgerError('Choose Cash, Check, Other or Not recorded as the payment method.')
     book=DemoBook.objects.select_for_update().get(pk=book_id,dealership_id=dealership_id,customer__dealership_id=dealership_id)
     effective_on=effective(effective_on,book.opening_on)
     prior=book.postings.filter(request_key=request_key).first()
     if prior:
-        if (prior.kind,prior.amount_cents,prior.reason,prior.effective_on,prior.actor_id)!=('receipt',amount,reason,effective_on,actor.pk):
+        if (prior.kind,prior.amount_cents,prior.reason,prior.effective_on,prior.actor_id,prior.payment_method)!=('receipt',amount,reason,effective_on,actor.pk,payment_method):
             raise LedgerError('This posting key was used for different facts.')
         return prior,False
-    return DemoPosting.objects.create(book=book,kind='receipt',amount_cents=amount,debit='cash_control',credit='unapplied',actor=actor,reason=reason,effective_on=effective_on,request_key=request_key),True
+    return DemoPosting.objects.create(book=book,kind='receipt',payment_method=payment_method,amount_cents=amount,debit='cash_control',credit='unapplied',actor=actor,reason=reason,effective_on=effective_on,request_key=request_key),True
 
 
 @transaction.atomic
@@ -112,7 +113,7 @@ def reverse_receipt(*,dealership_id,book_id,posting_id,actor,effective_on,reason
         return prior,False
     if original.kind!='receipt':raise LedgerError('Only an original synthetic receipt can be reversed.')
     if book.postings.filter(reverses=original).exists():raise LedgerError('This receipt already has a correction; no second reversal was posted.')
-    return DemoPosting.objects.create(book=book,kind='reversal',amount_cents=original.amount_cents,debit=original.credit,credit=original.debit,reverses=original,actor=actor,reason=reason,effective_on=effective_on,request_key=request_key),True
+    return DemoPosting.objects.create(book=book,kind='reversal',payment_method=original.payment_method,amount_cents=original.amount_cents,debit=original.credit,credit=original.debit,reverses=original,actor=actor,reason=reason,effective_on=effective_on,request_key=request_key),True
 
 
 def reconcile(*,dealership_id,book_id):

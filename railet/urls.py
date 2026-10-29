@@ -90,3 +90,21 @@ urlpatterns += [
     path('bhph-demo/<int:pk>/link/', account_views.link, name='bhph_account_link'),
     path('bhph-demo/<int:pk>/receipts/<int:posting_pk>/', account_views.receipt, name='bhph_account_receipt'),
 ]
+
+from finance import opening_views
+urlpatterns += [path('deals/<int:pk>/demo-account/', opening_views.opening, name='draft_demo_account')]
+
+from finance import account_exports
+urlpatterns += [
+    path('bhph-demo/<int:pk>/export/', account_exports.review, name='account_export_review'),
+    path('bhph-demo/<int:pk>/export/download/', account_exports.download, name='account_export_download'),
+]
+
+from finance import payment_register
+urlpatterns += [path('ledger-demo/payments/', payment_register.register, name='payment_register')]
+
+from finance import servicing_views
+urlpatterns += [path('bhph-demo/<int:pk>/servicing/setup/',servicing_views.setup,name='servicing_setup'),path('bhph-demo/<int:pk>/servicing/',servicing_views.detail,name='servicing_detail')]
+
+from deals import desking_views
+urlpatterns += [path('deals/estimate/',desking_views.preview,name='deal_estimate')]

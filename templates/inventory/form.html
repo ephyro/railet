@@ -8,7 +8,7 @@
   <h1>{% if editing %}Edit vehicle{% else %}Add vehicle{% endif %}</h1>
   <p>Save what you know now. You can edit this vehicle later.</p>
 </section>
-<section class="panel">
+<section class="panel entry-panel">
   <form method="post" data-unsaved-form data-bound="{{ form.is_bound|yesno:'true,false' }}">
     {% csrf_token %}
     {% if form.errors %}
@@ -69,8 +69,9 @@
         {% include 'shared/field.html' with field=form.odometer_status %}
       </div>
     </fieldset>
+    <details class="entry-optional" {% if form.acquisition_cost.errors or form.recon_cost.errors or form.notes.errors %}open{% endif %}><summary>Costs and notes <span class="muted">(optional)</span></summary>
     <fieldset class="form-section">
-      <legend>Costs and notes</legend>
+      <legend class="visually-hidden">Costs and notes</legend>
       <p class="section-help">Costs start at $0.00. You can update them later.</p>
       <div class="form-grid">
         {% include 'shared/field.html' with field=form.acquisition_cost %}
@@ -78,7 +79,8 @@
         {% include 'shared/field.html' with field=form.notes %}
       </div>
     </fieldset>
-    <div class="actions">
+    </details>
+    <div class="actions entry-actions">
       <button class="button">Save vehicle</button>
       {% if editing %}<a href="{% url 'vehicle_detail' vehicle.pk %}">Cancel</a>{% else %}<a href="{% url 'inventory' %}">Cancel</a>{% endif %}
       <span class="muted" aria-live="polite" data-save-status></span>

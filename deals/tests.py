@@ -192,7 +192,7 @@ class DraftWorkflowTests(TestCase):
 
     def test_invalid_amount_stays_visible_and_preserves_input(self):
         response = self.client.post(reverse("deal_create"), {**self.data, "sale_price": "ten dollars"})
-        self.assertContains(response, 'class="worksheet-disclosure" open')
+        self.assertContains(response, '<legend>Price and payments</legend>')
         self.assertEqual(response.context["form"]["sale_price"].value(), "ten dollars")
         self.assertFalse(DraftDeal.objects.exists())
 
@@ -351,24 +351,22 @@ class ConcurrentDraftCreationTests(TransactionTestCase):
         data.update(vehicle=vehicle.pk, customer_mode="new", buyer="", **{"new-first_name": "Concurrent", "new-last_name": "Buyer", "submission_key": str(uuid4())})
         both_ready = Barrier(2)
 
-        def synchronized_customer_save(*args, **kwargs):
-            both_ready.wait(timeout=20)
-            return save_customer(*args, **kwargs)
-
         def submit():
             close_old_connections()
             try:
                 client = Client()
                 client.force_login(user)
+                # Synchronize before the request; draft creation now locks the dealer
+                # before inline validation/save, so a barrier inside save would deadlock.
+                both_ready.wait(timeout=20)
                 response = client.post(reverse("deal_create"), data)
                 return response.status_code, response.get("Location")
             finally:
                 close_old_connections()
 
-        with patch("deals.views.save_customer", side_effect=synchronized_customer_save):
-            with ThreadPoolExecutor(max_workers=2) as pool:
-                futures = [pool.submit(submit) for _ in range(2)]
-                responses = [future.result(timeout=35) for future in futures]
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(submit) for _ in range(2)]
+            responses = [future.result(timeout=35) for future in futures]
 
         self.assertEqual([status for status, _ in responses], [302, 302])
         self.assertEqual(responses[0][1], responses[1][1])
@@ -380,8 +378,8 @@ class ConcurrentDraftCreationTests(TransactionTestCase):
 
 class DraftCreationKeyMigrationTests(TransactionTestCase):
     def test_existing_drafts_get_distinct_keys_without_changing_amounts(self):
-        previous = [("deals", "0001_initial"), ("inventory", "0003_vehiclephoto")]
-        current = [("deals", "0002_draft_creation_key"), ("inventory", "0003_vehiclephoto")]
+        previous = [("deals", "0001_initial"), ("inventory", "0003_vehiclephoto"), ("customers", "0001_initial")]
+        current = [("deals", "0002_draft_creation_key"), ("inventory", "0003_vehiclephoto"), ("customers", "0001_initial")]
         executor = MigrationExecutor(connection)
         try:
             executor.migrate(previous)

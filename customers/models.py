@@ -6,12 +6,21 @@ def phone_key(value):
     digits = "".join(c for c in value if c.isdigit())
     return digits[1:] if len(digits) == 11 and digits.startswith("1") else digits
 
+ADDRESS_FIELDS = ('address_line1', 'address_line2', 'city', 'region', 'postal_code', 'country')
+
+
 class Customer(models.Model):
     dealership = models.ForeignKey("core.Dealership", on_delete=models.PROTECT)
     first_name = models.CharField(max_length=80)
     last_name = models.CharField(max_length=80)
     phone = models.CharField(max_length=40, blank=True)
     email = models.EmailField(blank=True)
+    address_line1 = models.CharField(max_length=160, blank=True)
+    address_line2 = models.CharField(max_length=160, blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    region = models.CharField(max_length=100, blank=True)
+    postal_code = models.CharField(max_length=24, blank=True)
+    country = models.CharField(max_length=100, blank=True)
     phone_normalized = models.CharField(max_length=40, blank=True, editable=False, db_index=True)
     email_normalized = models.CharField(max_length=254, blank=True, editable=False, db_index=True)
     revision = models.PositiveIntegerField(default=1, editable=False)
@@ -23,6 +32,13 @@ class Customer(models.Model):
         self.phone_normalized = phone_key(self.phone)
         self.email_normalized = self.email.strip().casefold()
         super().save(*args, **kwargs)
+    @property
+    def address_lines(self):
+        locality = ', '.join(value for value in (self.city, self.region) if value)
+        if self.postal_code:
+            locality = ' '.join(value for value in (locality, self.postal_code) if value)
+        return tuple(value for value in (self.address_line1, self.address_line2, locality, self.country) if value)
+
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
 

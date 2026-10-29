@@ -1,0 +1,7 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+<section class="desk-tax" aria-labelledby="desk-tax-title"><h3 id="desk-tax-title">Sales tax</h3>
+<div class="form-grid">{% include 'shared/field.html' with field=form.tax_mode %}<div data-tax-auto>{% include 'shared/field.html' with field=form.tax_county %}</div><div data-tax-auto>{% include 'shared/field.html' with field=form.tax_date %}</div>{% include 'shared/field.html' with field=form.tax %}</div>
+<p class="section-help" data-tax-auto>For a Florida resident retail vehicle sale delivered in Florida. Use the county on the purchaser’s registration/title address. Out-of-state, exempt and other special cases need manual review.</p>
+<div data-tax-manual>{% include 'shared/field.html' with field=form.tax_reason %}</div>
+<div data-tax-trade>{% include 'shared/field.html' with field=form.tax_trade_confirmed %}</div><div data-tax-title>{% include 'shared/field.html' with field=form.tax_title_confirmed %}</div>
+<p class="desk-tax-result" data-tax-breakdown role="status">{% if deal.tax_context.mode == 'fl' %}Saved estimate: state ${{ deal.tax_context.state_tax }}, county ${{ deal.tax_context.county_tax }}. Calculation date {{ deal.tax_context.date }}.{% else %}Choose the tax setting for this draft.{% endif %}</p></section>

@@ -20,5 +20,13 @@
     form.querySelector('[name="buyer"]').focus();
     form.dispatchEvent(new Event('change', { bubbles: true }));
   }));
-  update();
+  const vehicleUpdate = () => {
+    const isNew=form.querySelector('[name="vehicle_mode"]:checked')?.value==='new';
+    for (const [selector,enabled] of [['[data-vehicle-existing]',!isNew],['[data-vehicle-new]',isNew]]) {
+      const section=form.querySelector(selector);if(!section)continue;
+      section.hidden=!enabled;section.querySelectorAll('input,select,textarea').forEach(field=>{field.disabled=!enabled});
+    }
+  };
+  form.querySelectorAll('[name="vehicle_mode"]').forEach(field=>field.addEventListener('change',vehicleUpdate));
+  vehicleUpdate();update();
 })();

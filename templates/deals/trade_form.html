@@ -14,7 +14,7 @@
 {% include 'shared/field.html' with field=form.title_brand %}{% include 'shared/field.html' with field=form.odometer_reading %}{% include 'shared/field.html' with field=form.odometer_unit %}{% include 'shared/field.html' with field=form.odometer_status %}
 </div></fieldset>
 <fieldset class="form-section"><legend>Allowance and payoff</legend><p class="section-help">These amounts update this draft's trade adjustment. An estimated payoff is not a payment or a confirmed lien release.</p><div class="form-grid">
-{% include 'shared/field.html' with field=form.trade_allowance %}{% include 'shared/field.html' with field=form.trade_payoff %}{% include 'shared/field.html' with field=form.lienholder_name %}{% include 'shared/field.html' with field=form.payoff_good_through %}{% include 'shared/field.html' with field=form.notes %}
+{% include 'shared/field.html' with field=form.trade_allowance %}{% include 'shared/field.html' with field=form.trade_payoff %}{% if deal.tax_context.mode == 'fl' %}{% include 'shared/field.html' with field=form.tax_trade_confirmed %}{% endif %}{% include 'shared/field.html' with field=form.lienholder_name %}{% include 'shared/field.html' with field=form.payoff_good_through %}{% include 'shared/field.html' with field=form.notes %}
 </div></fieldset>
 <div class="actions"><button class="button">Save trade-in</button><a href="{% url 'deal_detail' deal.pk %}#deal-structure">Cancel</a><span class="muted" data-save-status aria-live="polite"></span></div>
 </form></section><script defer src="{% asset_url 'vehicle-form.js' %}"></script>

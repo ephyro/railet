@@ -93,3 +93,29 @@ class LedgerViewTests(TestCase):
         for name in ('ledger_demo_list','ledger_demo_new'):
             self.assertEqual(self.client.get(reverse(name)).status_code,403)
         self.assertEqual(self.confirm('invalid').status_code,403)
+
+    def test_edit_returns_to_preparation_route_for_opening_payment_and_correction(self):
+        import re
+        def edit_and_repreview(route, data):
+            preview = self.client.post(route, data)
+            edited = self.confirm(preview.context['token'], action='edit')
+            target = re.search(r'<form method="post" action="([^"]+)" data-unsaved-form', edited.content.decode()).group(1)
+            self.assertEqual(target, route)
+            reviewed = self.client.post(target, data)
+            self.assertEqual(reviewed.status_code, 200)
+            self.assertIn('token', reviewed.context)
+            return reviewed.context['token']
+        opening_token = edit_and_repreview(reverse('ledger_demo_new'), self.data)
+        self.confirm(opening_token)
+        book = DemoBook.objects.get()
+        data = {'amount':'25.50', 'effective_on':self.data['effective_on'],
+                'reference':'Invented edit round trip', 'request_key':str(uuid4()), 'synthetic_confirmed':'on'}
+        receipt_token = edit_and_repreview(reverse('ledger_demo_receipt', args=[book.pk]), data)
+        self.assertFalse(book.postings.filter(kind='receipt').exists())
+        self.confirm(receipt_token)
+        posting = book.postings.get(kind='receipt')
+        self.assertEqual(posting.amount_cents, 2550)
+        correction_data = {**data, 'request_key':str(uuid4()), 'reference':'Invented correction edit round trip'}
+        correction_token = edit_and_repreview(reverse('ledger_demo_reverse', args=[book.pk,posting.pk]), correction_data)
+        self.confirm(correction_token)
+        self.assertEqual(book.postings.filter(kind='reversal').count(), 1)

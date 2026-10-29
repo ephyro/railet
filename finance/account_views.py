@@ -39,8 +39,16 @@ def workspace(request, pk):
     page = Paginator(history, 20).get_page(request.GET.get('page'))
     rows = [{'entry': item, 'amount': money(item.amount_cents)} for item in page]
     schedules = book.schedule_illustrations.all()[:5]
-    return render(request, 'finance/account.html', context(request, book=book, account=account,
-        page=page, rows=rows, schedules=schedules, principal=money(totals['net_debit']['principal']),
+    from django.conf import settings
+    simulation=None;simulation_error=None
+    if getattr(settings,'DEMO_SERVICING_ENABLED',False):
+        from .servicing_services import projection_for_book,display_projection
+        try:
+            result=projection_for_book(book)
+            simulation=display_projection(result) if result else None
+        except LedgerError as error:simulation_error=' '.join(error.messages)
+    return render(request, 'finance/account.html' , context(request, book=book, account=account,
+        simulation=simulation,simulation_error=simulation_error,servicing_enabled=getattr(settings,'DEMO_SERVICING_ENABLED',False),page=page, rows=rows, schedules=schedules, principal=money(totals['net_debit']['principal']),
         unapplied=money(-totals['net_debit']['unapplied'])))
 
 
@@ -76,7 +84,14 @@ def link(request, pk):
 @demo_page
 @member_view
 @require_GET
+@transaction.atomic
 def receipt(request, pk, posting_pk):
-    book = scoped_book(request, pk)
-    posting = get_object_or_404(book.postings.select_related('actor', 'reversal'), pk=posting_pk, kind='receipt')
-    return render(request, 'finance/account_receipt.html', context(request, book=book, posting=posting, amount=money(posting.amount_cents)))
+    from django.utils import timezone
+    book = scoped_book(request, pk, locked=True)
+    posting = get_object_or_404(book.postings.select_related('actor', 'reversal__actor'), pk=posting_pk, kind='receipt')
+    account = DemoAccountContext.objects.filter(book=book).first()
+    if account and result_digest(account.snapshot) != account.snapshot_sha256:
+        return render(request, 'finance/account_error.html', context(request), status=409)
+    return render(request, 'finance/account_receipt.html', context(request, book=book, posting=posting,
+        account=account, amount=money(posting.amount_cents), captured_at=timezone.now(),
+        display_zone=str(timezone.get_current_timezone())))

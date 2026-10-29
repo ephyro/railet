@@ -48,3 +48,18 @@ Schedule/method verification follow-up: the full PostgreSQL suite ran 261 tests,
 
 
 BHPH workspace verification: the complete PostgreSQL suite passed **273 tests** in 124.795 seconds, with no skips. Synthetic account/browser evidence is retained privately under `.local/account-review/`.
+
+
+October 26 draft-opening verification: the complete PostgreSQL suite passed 285 tests in 111.229 seconds with no skips, including same-key and distinct-key concurrent opening cases. Ten focused SQLite tests passed. Synthetic browser checks covered draft → reviewed opening → account navigation at 1440/390/320 pixels; no outer page overflow was found. These are developer checks, not staff or legal validation. Private evidence: `.local/draft-opening-review/`.
+
+
+Account-search verification (October 26, 2026): the full PostgreSQL suite passed 293 tests in 113.799 seconds with no skips; 25 focused PostgreSQL checks and eight focused SQLite checks passed. Browser checks exercised stock search, linked/unlinked scopes, advanced-rule editing, private saved views and account navigation at 1440/390/320 pixels without page overflow. These are synthetic developer checks; no production workload or staff validation is claimed. Private evidence: `.local/account-search-review/`.
+
+
+Account-export verification (October 26, 2026): the full PostgreSQL suite passed 303 tests in 107.854 seconds with no skips. Nine focused export tests also passed on SQLite. Verification includes independent expected journal totals, exact ZIP/manifest hashes, linked reversals, stored schedule preservation, CSV formula safety, authorization, failed-audit rollback, HEAD behavior, database audit immutability and real PostgreSQL row-lock exclusion during capture. Browser checks downloaded a synthetic ZIP, checked all file hashes, verified visible export history and checked 1440/390/320-pixel layouts without page overflow. This is developer verification, not staff or legal validation. Private evidence: `.local/account-export-review/`.
+
+
+Payment-register verification (October 26, 2026): the full PostgreSQL suite passed 312 tests in 111.993 seconds without skips. Nine focused tests passed on each PostgreSQL and SQLite. Checks cover independent receipt/correction totals, negative range activity, recorded/effective date separation, daylight-saving boundaries, single-query capture, dealership isolation, date validation, size limits and pagination totals. Browser checks verified the synthetic $74.50 net range, date switching and validation at 1440/390/320 pixels without outer overflow. This is developer verification, not staff or legal validation. Private evidence: `.local/payment-register-review/`.
+
+
+Customer-address verification (October 26, 2026): the final PostgreSQL suite passed 324 tests in 112.813 seconds without skips. Focused checks cover optional/partial entry, international text, omitted-field compatibility, explicit clearing, revision conflicts, authorization, escaped display, existing-data migration, visible packet previews, frozen buyer/co-buyer addresses and versioned account exports. Twenty-three SQLite address/snapshot checks and nine SQLite address/migration checks passed. Browser checks confirmed canonical reuse, preservation of old packet addresses after a later edit and 1440/390/320-pixel layouts. An outdated historical migration-test target was corrected before the successful final run. These are synthetic developer checks, not staff, postal or legal validation. Private evidence: `.local/customer-address-review/`.

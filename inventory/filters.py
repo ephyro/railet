@@ -3,7 +3,7 @@ from core.filtering import FilterField as Field, FilterSchema
 from .models import Vehicle
 
 SCHEMA = FilterSchema(
-    resource="inventory", title="Inventory", route="inventory",
+    resource="inventory", title="Vehicles", route="inventory",
     search_hint="Stock number, VIN, year, make or model",
     fields=(
         Field("status", "Status", "status", "choice", tuple(Vehicle.Status.choices)),

@@ -10,7 +10,7 @@ from inventory.identity import OdometerUnit, OdometerStatus, ODOMETER_FIELDS, va
 from inventory.models import Vehicle
 
 MONEY_FIELDS = ("sale_price", "tax", "title_registration", "dealer_fee", "trade_allowance", "trade_payoff", "down_payment")
-PROPOSAL_FIELDS = ("interest_method", "creditor_name", "payment_frequency", "payment_count", "annual_contract_rate", "first_payment_date")
+PROPOSAL_FIELDS = ("interest_method", "creditor_name", "payment_frequency", "payment_count", "annual_contract_rate", "first_payment_date", "illustration_finance_charge")
 TRADE_IDENTITY_FIELDS = ("vin", "year", "make", "model", "title_brand", *ODOMETER_FIELDS)
 TRADE_FIELDS = (*TRADE_IDENTITY_FIELDS, "lienholder_name", "payoff_good_through", "notes")
 
@@ -44,6 +44,7 @@ class DraftDeal(models.Model):
     trade_allowance = money_field()
     trade_payoff = money_field()
     down_payment = money_field()
+    tax_context = models.JSONField(default=dict,blank=True)
     notes = models.TextField(blank=True)
     revision = models.PositiveIntegerField(default=1, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -92,6 +93,7 @@ class DraftFinanceProposal(models.Model):
     payment_frequency = models.CharField(max_length=12, choices=Frequency.choices, blank=True)
     payment_count = models.PositiveSmallIntegerField(null=True, blank=True, validators=[MinValueValidator(1)])
     annual_contract_rate = models.DecimalField(max_digits=7, decimal_places=4, null=True, blank=True, validators=[MinValueValidator(Decimal("0"))])
+    illustration_finance_charge = models.DecimalField(max_digits=12,decimal_places=2,null=True,blank=True,validators=[MinValueValidator(Decimal("0"))])
     first_payment_date = models.DateField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -102,6 +104,7 @@ class DraftFinanceProposal(models.Model):
             models.CheckConstraint(condition=models.Q(kind__in=FINANCING_TYPES), name="proposal_kind_financing"),
             models.CheckConstraint(condition=models.Q(interest_method__in=("", "precomputed", "simple")), name="proposal_interest_method_known"),
             models.CheckConstraint(condition=models.Q(payment_count__isnull=True) | models.Q(payment_count__gte=1), name="proposal_payment_count_positive"),
+            models.CheckConstraint(condition=models.Q(illustration_finance_charge__isnull=True) | models.Q(illustration_finance_charge__gte=0),name="proposal_illustration_charge_nonnegative"),
             models.CheckConstraint(condition=models.Q(annual_contract_rate__isnull=True) | models.Q(annual_contract_rate__gte=0), name="proposal_rate_nonnegative"),
             models.CheckConstraint(condition=models.Q(payment_frequency="") | models.Q(payment_frequency__in=("weekly", "biweekly", "semimonthly", "monthly")), name="proposal_frequency_known"),
         ]

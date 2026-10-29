@@ -40,3 +40,5 @@ The subsequent isolated PostgreSQL 17.11 integration completed: all current migr
 
 
 New packets use demo-summary-v3 / snapshot schema 3 and freeze the proposed interest method. Earlier retained artifacts are not regenerated.
+
+New address-aware packets now use **demo-summary-v4 / snapshot schema 4**. They preview and freeze structured buyer/co-buyer contact addresses; earlier artifacts remain unchanged. See CUSTOMER_ADDRESSES.md.

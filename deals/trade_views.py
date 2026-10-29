@@ -10,7 +10,7 @@ from core.access import member_view, context, require_editor
 from core.models import Dealership
 from .models import DraftDeal, DraftTradeIn
 from .trade_forms import TradeInForm, TradeRemoveForm, TradeIntakeForm
-from .trades import save_trade, remove_trade, intake_trade
+from .trades import balance_without_trade, save_trade, remove_trade, intake_trade
 
 
 def scoped_deal(request, pk):
@@ -77,7 +77,7 @@ def trade_remove(request, pk, trade_pk):
                     messages.success(request, "Trade removed from the draft. Its record and saved history are retained.")
                     return redirect("deal_detail", pk=deal.pk)
     return render(request, "deals/trade_action.html", context(request, deal=deal, trade=trade, form=form, removing=True,
-                  balance_after=deal.draft_balance + deal.trade_allowance - deal.trade_payoff), status=status)
+                  balance_after=balance_without_trade(deal)), status=status)
 
 
 @member_view

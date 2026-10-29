@@ -47,7 +47,11 @@
     });
     form.querySelector('[data-type-summary]').textContent = dealType.selectedOptions[0]?.textContent || 'Not chosen';
   };
-  dealType.addEventListener('change', updateType);
+  dealType.addEventListener('change', () => {
+    updateType();
+    const selected = proposals.find(proposal => proposal.dataset.financeProposal === dealType.value);
+    if (selected) selected.open = true;
+  });
   updateType();
   const reveal = field => {
     const proposal = field.closest('[data-finance-proposal]');
@@ -105,7 +109,7 @@
     totals.trade_adjustment = totals.trade_payoff - totals.trade_allowance;
     form.querySelectorAll('[data-summary]').forEach(output => {
       const name = output.dataset.summary;
-      const subtract = ['trade_allowance', 'down_payment'].includes(name) && totals[name] !== 0n;
+      const subtract = !output.hasAttribute('data-summary-unsigned') && ['trade_allowance', 'down_payment'].includes(name) && totals[name] !== 0n;
       output.textContent = (subtract ? '−' : '') + money(totals[name]);
     });
     form.querySelectorAll('[data-summary-row]').forEach(row => { row.hidden = totals[row.dataset.summaryRow] === 0n; });

@@ -1,20 +1,11 @@
 {# SPDX-License-Identifier: MPL-2.0 #}
-{% extends 'base.html' %}{% load assets %}{% block extra_head %}<link rel="stylesheet" href="{% asset_url 'followups.css' %}">{% endblock %}
-{% block title %}Home{% endblock %}
-{% block content %}
-<section class="home-heading"><h1>What would you like to do?</h1></section>
-<div class="home-actions" aria-label="Dealership tasks">
-  {% if member.can_manage_inventory %}
-  <a class="home-action" href="{% url 'vehicle_create' %}">
-    <span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m4 11 3-6h10l3 6M3 11h18v7H3zM6 18v3M18 18v3M6 14h2M16 14h2"/></svg></span>
-    <div class="action-copy"><h2>Add a vehicle</h2><p>Save a vehicle and its title information.</p></div><span class="action-arrow" aria-hidden="true">→</span>
-  </a>
-  {% endif %}
-  <a class="home-action" href="{% url 'inventory' %}">
-    <span class="action-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></svg></span>
-    <div class="action-copy"><h2>Find a vehicle</h2><p>Look up a vehicle already in your inventory.</p></div><span class="action-arrow" aria-hidden="true">→</span>
-  </a>
-  {% if member.can_manage_inventory %}<a class="home-action" href="{% url 'deal_create' %}"><div class="action-copy"><h2>Start a deal</h2><p>Choose a vehicle and customer, then save a draft.</p></div><span class="action-arrow" aria-hidden="true">→</span></a><a class="home-action" href="{% url 'customer_create' %}"><div class="action-copy"><h2>Add a customer</h2><p>Start with a name. Contact details are optional.</p></div><span class="action-arrow" aria-hidden="true">→</span></a>{% endif %}
+{% extends 'base.html' %}{% block title %}Home{% endblock %}{% block content %}
+<section class="home-heading"><h1>Your dealership</h1><p>Choose a section to get started.</p></section>
+<div class="task-grid" aria-label="Dealership sections">
+<a class="task-choice" href="{% url 'inventory' %}"><span class="task-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m4 11 3-6h10l3 6M3 11h18v7H3zM6 18v3M18 18v3M6 14h2M16 14h2"/></svg></span><h2>Vehicles</h2><p>Your inventory, photos and vehicle details.</p><span class="task-link">View vehicles</span></a>
+<a class="task-choice" href="{% url 'customers' %}"><span class="task-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21v-3a8 8 0 0 1 16 0v3"/></svg></span><h2>Customers</h2><p>Your customer records and contact details.</p><span class="task-link">View customers</span></a>
+<a class="task-choice" href="{% url 'deals' %}"><span class="task-symbol" aria-hidden="true">{% include 'shared/section_icon.html' with section='deals' %}</span><h2>Deals</h2><p>Vehicle sales and deal preparation.</p><span class="task-link">View deals</span></a>
+{% if demo_accounts_enabled %}<a class="task-choice task-choice-bhph" href="{% url 'ledger_demo_list' %}"><span class="task-symbol" aria-hidden="true">{% include 'shared/section_icon.html' with section='bhph' %}</span><h2>BHPH</h2><p>Customer accounts and payment history.</p><span class="task-link">View accounts</span></a>{% endif %}
 </div>
-<section class="home-followups"><h2>Your follow-ups</h2>{% if follow_ups %}<ul>{% for task in follow_ups %}<li><a href="{% url 'followup_detail' task.pk %}">{{ task.title }}</a><small>Deal #{{ task.deal_id }} · {% if task.due_on and task.due_on < today %}Overdue: {{ task.due_on|date:'M j' }}{% elif task.due_on %}Due {{ task.due_on|date:'M j' }}{% else %}No due date{% endif %}</small></li>{% endfor %}</ul>{% else %}<p class="muted">No open follow-ups assigned to you.</p>{% endif %}<a href="{% url 'followups' %}">View all follow-ups</a></section>
+<details class="home-followups"><summary>Your follow-ups</summary>{% if follow_ups %}<ul>{% for task in follow_ups %}<li><a href="{% url 'followup_detail' task.pk %}">{{ task.title }}</a><small>Deal #{{ task.deal_id }}{% if task.due_on and task.due_on < today %} · Overdue: {{ task.due_on|date:'M j' }}{% elif task.due_on %} · Due {{ task.due_on|date:'M j' }}{% endif %}</small></li>{% endfor %}</ul>{% else %}<p>No follow-ups assigned to you.</p>{% endif %}<a href="{% url 'followups' %}">View all follow-ups</a></details>
 {% endblock %}

@@ -16,7 +16,7 @@ from deals.worksheet import draft_totals
 from inventory.models import Vehicle
 from .models import DemoDealPacket
 
-TEMPLATE_VERSION = 'demo-summary-v3'
+TEMPLATE_VERSION = 'demo-summary-v5'
 
 
 class PacketChanged(Exception):
@@ -47,7 +47,8 @@ def build_snapshot(deal):
     def person(customer):
         if customer is None:
             return None
-        return {'record_id': customer.pk, 'name': str(customer), 'phone': customer.phone, 'email': customer.email}
+        from customers.records import address_snapshot
+        return {'record_id': customer.pk, 'name': str(customer), 'phone': customer.phone, 'email': customer.email, 'address': address_snapshot(customer), 'address_lines': list(customer.address_lines)}
     def identity(record):
         return {
             'VIN': recorded(record.vin), 'Year': recorded(record.year), 'Make': recorded(record.make), 'Model': recorded(record.model),
@@ -66,16 +67,17 @@ def build_snapshot(deal):
             'Payment count': recorded(proposal.payment_count),
             'Annual contract rate entered (not APR)': f'{proposal.annual_contract_rate:.4f}%' if proposal.annual_contract_rate is not None else 'Not recorded',
             'First payment date': proposal.first_payment_date.isoformat() if proposal.first_payment_date else 'Not recorded',
+            'Precomputed finance charge entered (illustration only)': str(proposal.illustration_finance_charge) if proposal.illustration_finance_charge is not None else 'Not recorded',
         }
     return {
-        'schema_version': 3, 'archive_state': 'Archived draft' if deal.archived_at else 'Active draft', 'deal_id': deal.pk, 'deal_revision': deal.revision,
+        'schema_version': 5, 'tax_context':deal.tax_context, 'archive_state': 'Archived draft' if deal.archived_at else 'Active draft', 'deal_id': deal.pk, 'deal_revision': deal.revision,
         'dealership': deal.dealership.name, 'deal_type': deal.get_deal_type_display(),
         'vehicle': {'record_id': vehicle.pk, 'stock_number': vehicle.stock_number, 'description': str(vehicle),
                     'facts': identity(vehicle), 'title_received': vehicle.title_received},
         'buyer': person(deal.buyer), 'co_buyer': person(deal.co_buyer),
         'worksheet': {name: str(getattr(deal, name)) for name in MONEY_FIELDS},
         'worksheet_rows': [
-            ['Vehicle price', money_text(deal.sale_price)], ['Sales tax entered', money_text(deal.tax)],
+            ['Vehicle price', money_text(deal.sale_price)], ['Sales tax estimate' if deal.tax_context.get('mode')=='fl' else 'Sales tax entered', money_text(deal.tax)],
             ['Title / registration fees entered', money_text(deal.title_registration)], ['Dealer fee entered', money_text(deal.dealer_fee)],
             ['Trade allowance', money_text(deal.trade_allowance)], ['Estimated trade payoff', money_text(deal.trade_payoff)],
             ['Planned down payment (not money received)', money_text(deal.down_payment)],

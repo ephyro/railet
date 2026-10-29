@@ -2,6 +2,7 @@
 import json
 
 from django import forms
+from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -14,6 +15,13 @@ from railet.filtersets import SCHEMAS
 from .access import member_view, context
 from .filtering import FilterState
 from .models import Membership, SavedView
+
+
+def available_schema(resource):
+    schema = SCHEMAS.get(resource)
+    if schema and schema.enabled_setting and not getattr(settings, schema.enabled_setting, False):
+        return None
+    return schema
 
 
 def own_views(request, resource):
@@ -62,7 +70,7 @@ class SaveViewForm(forms.Form):
 
 @member_view
 def saved_view_create(request, resource):
-    schema = SCHEMAS.get(resource)
+    schema = available_schema(resource)
     if schema is None:
         raise Http404("Unknown view")
     if request.method == "POST":
@@ -98,7 +106,7 @@ def saved_view_create(request, resource):
 @require_POST
 def saved_view_delete(request, pk):
     saved = get_object_or_404(SavedView, pk=pk, dealership=request.member.dealership, owner=request.user)
-    schema = SCHEMAS.get(saved.resource)
+    schema = available_schema(saved.resource)
     saved.delete()
     messages.success(request, "Saved view removed.")
     return redirect(schema.route if schema else "today")

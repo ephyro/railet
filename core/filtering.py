@@ -58,6 +58,7 @@ class FilterSchema:
     default_sort: str = "recent"
     search_hint: str = "Search"
     extras: dict = field(default_factory=dict)
+    enabled_setting: str | None = None
 
 
 class FilterState:

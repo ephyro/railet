@@ -14,4 +14,9 @@ Railet's original community source is covered by MPL 2.0; see [LICENSE](LICENSE)
 
 `requirements.txt` and `requirements-staging.txt` declare version ranges. This source preview does not ship a reproducible production dependency lock or binary distribution. psycopg-binary/Pillow wheels can include native libraries with their own licenses; Python/PostgreSQL/Caddy/container base images and Docker tooling also carry separate licenses. Inspect the installed artifacts when packaging a distribution; this table does not replace their notices or LGPL obligations.
 
-The interface uses independently written local templates, CSS, JavaScript, and inline SVG. No private vendor captures, commercial form packs, bundled fonts, or third-party illustration assets are included in this source publication. Railet and Ephyro names are project identifiers, not a grant of trademark rights.
+The interface uses independently written local templates, CSS, JavaScript, and inline SVG. No private vendor captures, commercial form packs, or third-party illustration assets are included. The interface includes the Manrope font under SIL Open Font License 1.1; its license is retained at static/fonts/Manrope-OFL.txt. Railet and Ephyro names are project identifiers, not a grant of trademark rights.
+
+
+Bundled font: Manrope, SIL Open Font License 1.1. Upstream: https://github.com/googlefonts/manrope. The font license applies to the font files; Railet interface source remains MPL 2.0.
+
+The Railet brand mark is shared with the proprietor’s website at the owner’s direction. The brand identity does not grant trademark rights or license the proprietary website. Community application code remains MPL 2.0.
