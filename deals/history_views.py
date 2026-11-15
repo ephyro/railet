@@ -10,6 +10,7 @@ from .models import DraftDeal, MONEY_FIELDS
 from .review import money_text
 
 ACTION_LABELS = {
+    'completion_rehearsed': 'Completion rehearsal saved',
     'draft_saved': 'Draft saved', 'trade_saved': 'Trade saved',
     'trade_removed': 'Trade removed', 'trade_intake': 'Trade added to inventory',
     'draft_archived': 'Draft archived', 'draft_restored': 'Draft restored',

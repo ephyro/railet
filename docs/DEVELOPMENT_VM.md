@@ -2,9 +2,13 @@
 
 Docker Compose can run directly on your workstation. A separate Linux VM is useful when the host's Docker/kernel configuration makes that inconvenient. VM images and local SSH keys belong under ignored `.local/`; they must never be committed.
 
+Source review: November 13, 2026, against `dev/vm/start.sh`, `dev/vm/sync.sh`
+and `compose.yaml`; no VM boot, sync or container operation was run. Historical
+results below do not validate the current checkout or existing VM upgrades.
+
 ## Create your own VM
 
-Install QEMU and obtain an Ubuntu Server installer from Ubuntu. `dev/vm/start.sh --install` creates a 30 GiB disk under `.local/railet-vm/` and boots the installer. Set `RAILET_VM_ISO` to your ISO path; the script otherwise looks in your Downloads directory. It uses KVM when available and forwards only host loopback port 2223 to guest SSH port 22. After installation, `dev/vm/start.sh` boots the disk. Run only one VM process per disk.
+Install QEMU and obtain an Ubuntu Server installer from Ubuntu. `dev/vm/start.sh` creates a 30 GiB disk under `.local/railet-vm/` if missing (even without `--install`); `--install` boots the installer. Set `RAILET_VM_ISO` to your ISO path; the script otherwise looks in your Downloads directory. It uses KVM when available and forwards only host loopback port 2223 to guest SSH port 22. After installation, `dev/vm/start.sh` boots the disk. Run only one VM process per disk.
 
 The optional sync script assumes a guest account named `dev`, project path `~/railet`, and a dedicated key at `.local/vm-access/id_ed25519`. Create and authorize your own key, verify the guest host key, and adjust the script if your configuration differs. No credentials, private keys, VM images, or preconfigured accounts are distributed with this repository.
 
@@ -13,7 +17,7 @@ The optional sync script assumes a guest account named `dev`, project path `~/ra
 ssh -F /dev/null -p 2223 -i .local/vm-access/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes dev@127.0.0.1
 ```
 
-The explicit sync allowlist copies source without deleting guest files or transferring local credentials. In the guest, install Docker/Compose, create your own `.env`, and follow the README from `~/railet`. Use your configured privilege elevation for Docker. Apply migrations explicitly and rebuild for dependency changes.
+The sync script transfers the named source/documentation trees without `--delete`; it can overwrite matching guest source files and leave removed host files stale in the guest. It omits root `.env`/`.local` paths, but only excludes `__pycache__` within the selected trees: inspect them for local secrets or artifacts before syncing. This is not a general credential filter. Preserve guest `.env`, database and private-media volumes; never use a sync or reseed as an existing-data upgrade substitute. In the guest, install Docker/Compose, create your own `.env`, and follow the README from `~/railet`. Use your configured privilege elevation for Docker. Apply migrations explicitly and rebuild for dependency changes.
 
 ## Open the application from the host
 

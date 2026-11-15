@@ -3,7 +3,7 @@ import csv,hashlib,io,json,zipfile
 from datetime import date
 from uuid import uuid4
 from unittest.mock import patch
-from django.db import DatabaseError,transaction
+from django.db import DatabaseError,connection,transaction
 from django.test import TestCase,override_settings
 from django.urls import reverse
 from deals.account_context import account_draft_snapshot
@@ -120,6 +120,29 @@ class AccountExportTests(TestCase):
             with self.assertRaises(DatabaseError),transaction.atomic():
                 qs=DemoAccountExport.objects.all()
                 qs.update(bundle_sha256='changed') if action=='update' else qs.delete()
+
+    def test_sqlite_repair_restores_both_guards_without_changing_existing_audit(self):
+        if connection.vendor != 'sqlite':
+            self.skipTest('SQLite trigger repair')
+        from importlib import import_module
+        from types import SimpleNamespace
+        self.client.get(self.url)
+        event = DemoAccountExport.objects.get()
+        before = (event.pk, event.book_id, event.actor_id, event.bundle_sha256, event.bundle_bytes)
+        with connection.cursor() as cursor:
+            for operation in ('update', 'delete'):
+                cursor.execute(f'DROP TRIGGER IF EXISTS demo_account_export_{operation}')
+            repair = import_module('finance.migrations.0015_restore_export_audit_guards')
+            editor = SimpleNamespace(connection=connection, execute=cursor.execute)
+            repair.restore_guards(None, editor)
+            repair.restore_guards(None, editor)  # Safe if migration is applied to an already-guarded database.
+        event.refresh_from_db()
+        self.assertEqual((event.pk, event.book_id, event.actor_id, event.bundle_sha256, event.bundle_bytes), before)
+        for operation in ('update', 'delete'):
+            with self.subTest(operation=operation), self.assertRaises(DatabaseError), transaction.atomic():
+                qs = DemoAccountExport.objects.filter(pk=event.pk)
+                qs.update(bundle_sha256='changed') if operation == 'update' else qs.delete()
+        self.assertTrue(DemoAccountExport.objects.filter(pk=event.pk).exists())
 
     def test_exports_include_entries_beyond_workspace_pagination(self):
         for number in range(25):

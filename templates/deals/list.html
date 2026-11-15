@@ -16,11 +16,11 @@
       <tbody>
         {% for deal in deals %}
         <tr>
-          <td><a href="{% url 'deal_detail' deal.pk %}">#{{ deal.pk }}</a><small>{{ deal.get_deal_type_display }}{% if deal.archived_at %} · Archived{% endif %}</small></td>
-          <td><a class="vehicle-identity" href="{% url 'deal_detail' deal.pk %}">{% include 'inventory/vehicle_photo.html' with vehicle=deal.vehicle %}<span><b>{{ deal.vehicle }}</b><small>Stock {{ deal.vehicle.stock_number }}{% if deal.vehicle.vin %} · VIN …{{ deal.vehicle.vin|slice:'-6:' }}{% endif %}</small></span></a></td>
-          <td><a href="{% url 'customer_detail' deal.buyer_id %}">{{ deal.buyer }}</a>{% if deal.co_buyer %}<small>Co-buyer: <a href="{% url 'customer_detail' deal.co_buyer_id %}">{{ deal.co_buyer }}</a></small>{% endif %}</td>
+          <td><a href="{% url 'deal_detail' deal.pk %}">#{{ deal.pk }}</a><small>{{ deal.get_deal_type_display }}{% if deal.demo_completion %} · Frozen rehearsal{% endif %}{% if deal.archived_at %} · Archived{% endif %}</small></td>
+          <td>{% if deal.demo_completion %}<a href="{% url 'deal_completion' deal.pk %}"><b>{{ deal.demo_completion.packet.snapshot.vehicle.description }}</b><small>Stock {{ deal.demo_completion.packet.snapshot.vehicle.stock_number }} · As frozen</small></a>{% else %}<a class="vehicle-identity" href="{% url 'deal_detail' deal.pk %}">{% include 'inventory/vehicle_photo.html' with vehicle=deal.vehicle %}<span><b>{{ deal.vehicle }}</b><small>Stock {{ deal.vehicle.stock_number }}{% if deal.vehicle.vin %} · VIN …{{ deal.vehicle.vin|slice:'-6:' }}{% endif %}</small></span></a>{% endif %}</td>
+          <td>{% if deal.demo_completion %}{{ deal.demo_completion.packet.snapshot.buyer.name }} <small>As frozen</small>{% else %}<a href="{% url 'customer_detail' deal.buyer_id %}">{{ deal.buyer }}</a>{% endif %}{% if deal.co_buyer and not deal.demo_completion %}<small>Co-buyer: <a href="{% url 'customer_detail' deal.co_buyer_id %}">{{ deal.co_buyer }}</a></small>{% endif %}</td>
           <td>${{ deal.draft_balance|floatformat:2 }}</td>
-          <td><time datetime="{{ deal.updated_at|date:'c' }}">{{ deal.updated_at|date:'M j, Y' }}</time><small>{{ deal.updated_at|date:'g:i A' }}</small></td>
+          <td>{% if deal.demo_completion %}<time datetime="{{ deal.demo_completion.created_at|date:'c' }}">{{ deal.demo_completion.created_at|date:'M j, Y' }}</time><small>Rehearsal completed</small>{% else %}<time datetime="{{ deal.updated_at|date:'c' }}">{{ deal.updated_at|date:'M j, Y' }}</time><small>{{ deal.updated_at|date:'g:i A' }}</small>{% endif %}</td>
         </tr>
         {% empty %}
         <tr><td colspan="5">{% if query %}No drafts match “{{ query }}”. Try a different name, stock number or VIN.{% else %}No deals saved yet.{% if member.can_manage_inventory %} <a href="{% url 'deal_create' %}">Start a deal</a>.{% endif %}{% endif %}</td></tr>

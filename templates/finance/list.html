@@ -4,6 +4,7 @@
 {% block extra_head %}<link rel="stylesheet" href="{% asset_url 'filters.css' %}"><link rel="stylesheet" href="{% asset_url 'account-worklist.css' %}">{% endblock %}
 {% block content %}
 <section class="page-heading records-heading"><h1 class="section-title"><span class="section-symbol section-symbol-bhph">{% include 'shared/section_icon.html' with section='bhph' %}</span>BHPH accounts</h1><a class="button" href="{% url 'payment_register' %}">Daily payments</a></section>
+<p class="records-footnote">Test accounts only. Any amounts due and late statuses are simulations; recorded payments remain unapplied.</p>
 {% if servicing_enabled %}<nav class="account-status-tabs" aria-label="Demo account status">{% for tab in status_tabs %}<a href="?{{ tab.query }}" class="status-tab-{{ tab.status|default:'all' }}" {% if tab.active %}aria-current="page"{% endif %}>{{ tab.label }}</a>{% endfor %}</nav>{% endif %}
 <section class="panel records-panel">
 {% include 'shared/filter_builder.html' with compact=True prominent_sort=servicing_enabled %}

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 from django.http import Http404, HttpResponseNotAllowed
 from django.db import transaction
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
 
@@ -23,6 +23,8 @@ def review_detail(request, pk):
     if request.method not in ("GET", "HEAD"):
         return HttpResponseNotAllowed(["GET", "HEAD"])
 
+    if DraftDeal.objects.filter(pk=pk,dealership=request.member.dealership,demo_completion__isnull=False).exists():
+        return redirect('deal_completion',pk=pk)
     with transaction.atomic():
         return _render_review(request, pk)
 

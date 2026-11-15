@@ -89,3 +89,41 @@ class CustomerAddressTests(TestCase):
         self.assertTrue(form.is_valid(),form.errors)
         self.assertEqual(form.cleaned_data['address_line1'],self.address['address_line1'])
         self.assertEqual(form['address_line1'].field.widget.attrs['autocomplete'],'address-line1')
+
+    def test_lead_stage_optional_filtering_audit_and_stale_guard(self):
+        self.assertEqual(self.customer.lead_stage, '')
+        detail = self.client.get(reverse('customer_detail', args=[self.customer.pk]))
+        self.assertContains(detail, 'Not set')
+
+        # Set lead stage and verify audit event and revision increment
+        self.assertEqual(self.post(lead_stage='contacted').status_code, 302)
+        self.customer.refresh_from_db()
+        self.assertEqual((self.customer.lead_stage, self.customer.revision), ('contacted', 2))
+        event = CustomerEvent.objects.get()
+        self.assertEqual(event.changes['fields']['lead_stage'], 'contacted')
+
+        # Omitted lead_stage on legacy POST preserves existing stage; explicit blank clears it
+        self.assertEqual(self.post(phone='3055550199').status_code, 302)
+        self.customer.refresh_from_db()
+        self.assertEqual(self.customer.lead_stage, 'contacted')
+
+        # Stale edit rejected with 409 and preserves submitted stage
+        stale = self.post(lead_stage='working_deal', revision=1)
+        self.assertEqual(stale.status_code, 409)
+        self.assertEqual(stale.context['form']['lead_stage'].value(), 'working_deal')
+        self.customer.refresh_from_db()
+        self.assertEqual(self.customer.lead_stage, 'contacted')
+
+        # Customer list stage tabs and filter builder
+        unassigned = Customer.objects.create(dealership=self.dealer, first_name='Unset', last_name='Stage')
+        foreign_contacted = Customer.objects.create(dealership=self.other, first_name='Foreign', last_name='Stage', lead_stage='contacted')
+        list_url = reverse('customers')
+        self.assertEqual([c.pk for c in self.client.get(list_url, {'stage': 'contacted'}).context['customers']], [self.customer.pk])
+        self.assertEqual([c.pk for c in self.client.get(list_url, {'stage': 'unspecified'}).context['customers']], [unassigned.pk])
+        self.assertEqual([c.pk for c in self.client.get(list_url, {'filter_field': 'stage', 'filter_op': 'eq', 'filter_value': 'contacted'}).context['customers']], [self.customer.pk])
+        self.assertNotIn(foreign_contacted, self.client.get(list_url).context['customers'])
+
+        # Clear stage back to unspecified
+        self.assertEqual(self.post(lead_stage='').status_code, 302)
+        self.customer.refresh_from_db()
+        self.assertEqual(self.customer.lead_stage, '')

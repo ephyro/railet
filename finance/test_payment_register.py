@@ -108,3 +108,69 @@ class PaymentRegisterTests(TestCase):
         link=reverse('bhph_account_receipt',args=[self.book.pk,self.receipt.pk])
         self.assertContains(page,link)
         self.assertEqual(self.client.get(link).status_code,200)
+
+    def csv(self, **changes):
+        import csv, io
+        data = {'basis': 'recorded', 'start': '2026-01-01', 'end': '2026-02-28', 'format': 'csv'}
+        data.update(changes)
+        response = self.client.get(self.url, data)
+        self.assertEqual(response.status_code, 200)
+        return response, list(csv.DictReader(io.StringIO(response.content.decode('utf-8-sig'))))
+
+    def test_csv_exports_exact_receipts_and_linked_reversals_with_filters(self):
+        page = self.report(page=2)
+        self.assertContains(page, 'format=csv')
+        self.assertContains(page, 'basis=recorded')
+        response, rows = self.csv(page=2)
+        self.assertIn('attachment', response['Content-Disposition'])
+        self.assertIn('no-store', response['Cache-Control'])
+        self.assertEqual(response['X-Content-Type-Options'], 'nosniff')
+        self.assertEqual(len(rows), 2)
+        by_type = {row['Type']: row for row in rows}
+        self.assertEqual(by_type['Receipt']['Amount USD'], '125.50')
+        self.assertEqual(by_type['Reversal']['Amount USD'], '-125.50')
+        self.assertEqual(by_type['Reversal']['Original receipt #'], str(self.receipt.pk))
+        self.assertEqual(by_type['Receipt']['Effective date'], '2026-01-05')
+        self.assertTrue(by_type['Receipt']['Recorded at (local with offset)'].startswith('2026-01-10T12:00:00-05:00'))
+        self.assertEqual(by_type['Receipt']['Reference'], 'Synthetic January receipt')
+        self.assertEqual(by_type['Receipt']['Scope'], 'Synthetic · unapplied')
+        self.assertNotIn('FOREIGN-PRIVATE', response.content.decode('utf-8-sig'))
+        _, only_reversal = self.csv(basis='effective', start='2026-01-06', end='2026-01-06')
+        self.assertEqual(len(only_reversal), 1)
+        self.assertEqual(only_reversal[0]['Original receipt #'], str(self.receipt.pk))
+        self.assertEqual(only_reversal[0]['Amount USD'], '-125.50')
+
+    def test_csv_neutralizes_untrusted_cells_and_does_not_truncate_to_page(self):
+        self.customer.first_name = '=HYPERLINK("bad")'
+        self.customer.save()
+        for number in range(26):
+            with patch('django.utils.timezone.now', return_value=datetime(2026,1,11,17,tzinfo=dt_timezone.utc)):
+                record_receipt(dealership_id=self.dealer.pk, book_id=self.book.pk, actor=self.users['staff'], amount='1.25',
+                    effective_on=date(2026,1,11), reason='  =Synthetic formula', request_key=uuid4())
+        _, rows = self.csv(start='2026-01-11', end='2026-01-11', page=2)
+        self.assertEqual(len(rows), 26)
+        self.assertTrue(all(row['Customer'].startswith("'=HYPERLINK") for row in rows))
+        self.assertTrue(all(row['Reference'] == "'=Synthetic formula" for row in rows))
+        self.assertEqual(sum(int(row['Amount USD'].replace('.', '')) for row in rows), 3250)
+
+    def test_csv_permissions_gate_invalid_and_bounded_requests(self):
+        self.client.force_login(self.users['viewer'])
+        _, rows = self.csv()
+        self.assertEqual(len(rows), 2)
+        self.client.force_login(self.users['foreign'])
+        _, foreign = self.csv()
+        self.assertEqual(len(foreign), 1)
+        self.assertEqual(foreign[0]['Amount USD'], '999.99')
+        self.client.force_login(self.users['staff'])
+        for params in ({'start':'bad'}, {'basis':'other'}):
+            response = self.client.get(self.url, {'format':'csv', **params})
+            self.assertEqual(response.status_code, 400)
+            self.assertNotIn('Content-Disposition', response)
+        with patch('finance.payment_register.MAX_ROWS', 1):
+            response = self.client.get(self.url, {'format':'csv', 'basis':'recorded', 'start':'2026-01-01', 'end':'2026-02-28'})
+            self.assertEqual(response.status_code, 400)
+            self.assertNotIn('Content-Disposition', response)
+        with override_settings(DEMO_LEDGER_ENABLED=False):
+            self.assertEqual(self.client.get(self.url, {'format':'csv'}).status_code, 403)
+        self.client.logout()
+        self.assertEqual(self.client.get(self.url, {'format':'csv'}).status_code, 302)

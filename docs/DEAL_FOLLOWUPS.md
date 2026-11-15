@@ -10,9 +10,9 @@ Task creation uses a per-deal UUID, protected by a unique constraint and the par
 
 Task changes do not increment the deal revision or create worksheet/financial events. An archived deal may retain and receive internal follow-ups without being restored; archiving does not silently complete or delete reminders. Canonical customer records and saved demo packets are not copied or altered. There are no task deletion endpoints. Privileged database writes remain able to alter records; no immutable audit infrastructure or record-retention/deletion policy is claimed.
 
-Dates use the application's configured local timezone. Completion timestamps are recorded separately from due dates. No external calendar, email, SMS, telemetry, or provider integration is configured. Avoid private customer information in free text; the development build remains synthetic-only.
+Dates use the application's configured local timezone. Completion timestamps are recorded separately from due dates. No external calendar, email, SMS, telemetry, or provider integration is configured for these follow-ups. A separate offline mock-message simulator exists, but it is not connected to these reminders and is not evidence of real delivery or consent. Avoid private customer information in free text; the development build remains synthetic-only.
 
-## Verification and integration
+## Historical verification and integration (October 2026)
 
 Eleven focused follow-up tests cover create/retry, creation-key conflict, assignment/completion/reopening history, stale/no-op updates, same-dealership active-editor assignment, role and dealership isolation, Home/list state and overdue filters, archived-parent behavior, audit rollback, escaping, CSRF/method/cache controls, and validation work preservation. The relevant follow-up/lifecycle/history run passed all 25 tests. Django migration drift checks passed.
 
@@ -20,4 +20,4 @@ Migration: `deals.0006_dealfollowup_followupevent_and_more`. It is applied to th
 
 ## PostgreSQL integration follow-up
 
-The subsequent isolated PostgreSQL 17.11 integration completed: all current migrations applied to a fresh synthetic database, the complete DMS suite passed 237 tests with no skips, and browser workflows passed on PostgreSQL. This supersedes the earlier lack of PostgreSQL runtime evidence for this source slice. The original offline VM and its existing data remain untouched and unverified for upgrade. See [POSTGRES_INTEGRATION.md](POSTGRES_INTEGRATION.md) for environment, concurrency, browser and synthetic restore evidence and limits.
+The subsequent isolated PostgreSQL 17.11 integration completed: migrations existing at that time applied to a fresh synthetic database, the then-current DMS suite passed 237 tests with no skips, and browser workflows passed on PostgreSQL. This supersedes the earlier lack of PostgreSQL runtime evidence for this source slice, not verification of every later change. The original offline VM and its existing data were not verified for upgrade. See [POSTGRES_INTEGRATION.md](POSTGRES_INTEGRATION.md) for environment, concurrency, browser and synthetic restore evidence and limits.

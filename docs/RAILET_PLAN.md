@@ -48,7 +48,7 @@ Maintain a compliance register with: authority/link, applicable workflow, jurisd
 | FTC Used Car Rule, 16 CFR 455 [8] | Applicable Buyers Guide generation, warranty consistency, language requirements and final copy retention | Confirm display/delivery process; software output alone does not satisfy physical display duties |
 | Florida Chapters 319/320, including §319.14 [9] | Structured title brands, required written disclosures and advertising checks; title/tag deadlines and ownership evidence | Review Florida forms and delivery/signature requirements, including rebuilt/flood and other applicable statuses |
 | Federal odometer requirements, 49 CFR 580 [10] | Model-year/exemption logic, mileage status, compliant disclosure workflow | Verify current forms and electronic-title/odometer acceptance; do not substitute an ordinary signature pad |
-| Florida dealer retention, §320.27 and FLHSMV handbook [11] | Five-year retention for specified dealer records; printable/exportable inspection packet | Retention by record category, longer applicable periods and legal holds override deletion |
+| Florida dealer retention, §320.27(6) [11] | Five-year retention for specified dealer records; printable/exportable inspection packet | Record-specific triggers, overlapping duties and holds require review; no universal deletion clock. See [retention research and proposed controls](FLORIDA_RETENTION_RESEARCH.md) |
 | E-SIGN and Florida UETA, §668.50 [12] | Applicable electronic consent, attribution, tamper evidence, accessible copies and delivery | Review document eligibility and DMV acceptance before electronic signing |
 | EFTA / Regulation E, §1005.10; provider/Nacha obligations [13] | Separate recurring-debit authorization and copy, cancellation, variable-payment notices, return handling | No compulsory recurring EFT as a general credit condition; approve provider-specific workflow before autopay |
 | Collections, repossession and bankruptcy [14] | Contact preferences, consent/stop flags, review queues, dispute/bankruptcy holds and communication history | Florida collection rules may reach original creditors; federal FDCPA applicability differs. Counsel reviews notices and repossession workflows before activation |
@@ -56,6 +56,31 @@ Maintain a compliance register with: authority/link, applicable workflow, jurisd
 | Card processing and marketing [16] | Hosted/tokenized payment fields; consent and suppression lists before automated messaging | PCI DSS is an industry/contractual standard, not a blanket DMS law. Verify payment and messaging obligations before enabling integrations |
 
 Additional review before special cases: military borrowers and SCRA, deceased borrowers, out-of-state sales, trade-in negative equity, GAP/service contracts and refunds, GPS/starter-interrupt devices, accessibility, and third-party collection servicing. Do not assume all military lending laws treat purchase-money auto credit alike.
+
+### Record retention and preservation design (November 13, 2026)
+
+[The retention register](FLORIDA_RETENTION_RESEARCH.md) maps current models,
+historical snapshots, private artifacts and exports to conditional requirements
+and unresolved triggers. Its November 13 primary-source recheck records source
+currency, blocked access and unresolved effective dates separately from the
+November 7 baseline. It is not an approved operational schedule.
+
+Proposed Community controls: Foundation-owned classification/hold metadata with
+module-owned records; versioned trigger evidence and unresolved states; immediate
+provisional preservation; explicit historical/future record scope; restricted,
+append-only actor/audit history; and independent legal-review/custodian approval
+for release. Releasing one hold never releases another or authorizes disposal.
+Archive, demo completion, zero balance and edit timestamps are not substitutes
+for reviewed legal trigger events. Preservation holds and servicing/contact stops
+have separate purposes and controls.
+
+Before operational use, resolve legal/CPA applicability and dates, designate
+custodians, verify server permissions and concurrent hold changes, and test
+export coverage and current-hold reconciliation after database/private-media
+restore. Existing exports omit hold metadata and are not coordinated evidence
+captures. Implementation and acceptance remain open; this documentation enables
+no live workflow or deletion. Automatic deletion remains disabled, with disposal
+and backup-expiration decisions reserved for separate reviewed work.
 
 ### Financial correctness requirements
 
@@ -331,3 +356,78 @@ equal-monthly simple-interest illustrations are explicitly distinct; neither is
 APR, actual daily accrual, a live loan or tax filing. See FLORIDA_DRAFT_TAX.md for
 primary authorities, effective-date scope, unresolved rule/professional review,
 provenance and verification. Community/enterprise and production gates are unchanged.
+
+### Vehicle work and cost register (October 30, 2026)
+
+Inventory now owns scoped vendors, To do / In progress / Done tasks and an
+append-only synthetic itemized vehicle-cost register. Existing acquisition and
+unitemized recon amounts remain separate; net itemized costs feed inventory totals
+and filters. Exact linked corrections, retry keys, dealership serialization,
+audit transactions and PostgreSQL/SQLite guards preserve cost history. This is
+internal cost tracking, not accounts payable, valuation/tax accounting, vendor
+payments or a vehicle safety certification. No customer balance, sale-tax rule,
+production gate or community/enterprise boundary changes. See
+[VEHICLE_WORK_AND_COSTS.md](VEHICLE_WORK_AND_COSTS.md) for controls and review gates.
+
+Vehicle-work follow-up: the inventory work queue reuses shared search, filters,
+pagination and personal saved views. Optional revision-checked asking prices stay
+unknown on migrated records, support inventory filters, and give an editable
+initial suggestion when a new deal starts from a selected vehicle. Asking price
+less recorded costs is labeled as an estimate before overhead/commissions and
+unrecorded costs, with a textual below-cost warning. Existing deals and finalized
+snapshots do not change when inventory pricing changes. This is not net-profit,
+valuation or tax-accounting behavior; existing review and production gates remain.
+See VEHICLE_WORK_AND_COSTS.md for migration and verification evidence.
+
+### Frozen completion rehearsals (October 30, 2026)
+
+A saved deal can now rehearse review/confirmation into a frozen internal record,
+with a Documents-owned retained summary, supporting-file references, source hashes,
+actor/time, reminders and review notes. A completed-rehearsal list separates these
+from work in progress. Worksheet/party/trade/financing changes and archive/restore
+are blocked afterwards; shared profile edits preserve historical facts. Signed
+stale-preview protection, serialized/idempotent confirmation, transactional audit
+and PostgreSQL/SQLite freeze guards are implemented. No vehicle sale, legal
+finalization, signing, loan, financial posting, retention policy or production gate
+is introduced. Existing BHPH books remain accessible; a new account from a completed
+rehearsal awaits a separately reviewed frozen-record handoff. See
+[DEMO_COMPLETION.md](DEMO_COMPLETION.md) for internal checks, boundaries and evidence.
+
+Completed BHPH rehearsals can open a new synthetic account using verified frozen
+facts and an independently entered opening figure. An existing unlinked account
+for the same customer can also be linked after reviewing the frozen facts. See
+DEMO_COMPLETION.md; live servicing gates and review requirements remain unchanged.
+
+DocuSeal research follow-up (November 2, 2026): an offline request builder now
+constructs synthetic template requests with notifications disabled. It has no
+network transport, webhook, provider credentials, signing UI or live operation.
+See DOCUSEAL_REHEARSAL.md for source links, licensing and unresolved release gates.
+
+Customer activity development: manual conversation notes, follow-ups and
+appointments now link to the shared customer, with owner/staff creation,
+read-only viewing, retry protection, completion attribution and transactional
+history. No external messaging, call scheduling or consent inference occurs.
+The founder plans a future optional SignalWire integration. Before enabling live
+communications, research current applicable federal and Florida rules, purpose,
+consent, opt-outs, time restrictions, record retention and provider-specific
+requirements; design auditable delivery, suppression and idempotency. No live
+messaging is authorized by this planning note. Synthetic data only.
+
+Inventory reporting development: a synthetic, dealership-scoped investment
+report lists recorded cost, asking price and their difference by inventory status.
+Existing cost adjustments are reflected. The difference excludes overhead and
+unrecorded costs and is not accounting profit. Acquisition dates are not stored;
+no aging is inferred from last-updated timestamps. Report exports and sales/
+servicing reports remain outstanding. Developer checks include authorization,
+filtering and independent cost/reversal reference values; no production gate changes.
+
+Customer follow-up management: synthetic follow-ups and appointments now support
+optional assignment to a current same-dealership owner/staff member, edited details
+and due date, completion and reopening. Each mutation uses a revision check;
+stale edits preserve entered data and stale status changes require fresh review.
+Customer history stores before/after facts and actor, and audit failure rolls back
+the change. Existing activities migrate unassigned with revision 1. Notes remain
+separate from assignable tasks. No SignalWire call, text, consent inference or
+production messaging is enabled. Developer checks passed 15 PostgreSQL and 9 SQLite
+cases; Firefox exercised assignment, reschedule, completion, reopening and narrow
+layouts on an invented record. Dealership staff validation remains outstanding.

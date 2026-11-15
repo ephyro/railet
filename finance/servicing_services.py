@@ -4,8 +4,9 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction,IntegrityError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from core.models import Dealership
 from .models import DemoBook,DemoSchedule,DemoServicingPlan,DemoPosting
-from .services import require_demo,require_member,key,LedgerError
+from .services import require_demo,require_posting_member,key,LedgerError
 from .schedule_services import calculate_for_book,result_digest
 from .servicing import POLICY,MAX_POSTINGS,project
 
@@ -35,8 +36,10 @@ def verified_schedule(book,schedule,opening_cents=None):
 
 @transaction.atomic
 def select_baseline(*,dealership_id,book_id,schedule_id,actor,reason,creation_key,expected_digest):
-    require_simulation();require_member(actor,dealership_id);creation_key=key(creation_key)
+    require_simulation();creation_key=key(creation_key)
+    Dealership.objects.select_for_update().get(pk=dealership_id)
     book=get_object_or_404(DemoBook.objects.select_for_update(),pk=book_id,dealership_id=dealership_id,customer__dealership_id=dealership_id)
+    require_posting_member(actor,dealership_id)
     prior=DemoServicingPlan.objects.filter(book=book).first()
     if prior:
         if (prior.creation_key,prior.schedule_id,prior.created_by_id,prior.reason,prior.schedule_sha256)!=(creation_key,schedule_id,actor.pk,reason,expected_digest):

@@ -83,6 +83,17 @@ class LedgerTests(TestCase):
         with self.assertRaises(DemoBook.DoesNotExist):record_receipt(dealership_id=self.other.pk,book_id=book.pk,actor=self.users['foreign'],amount='1',effective_on=self.today,reason='Synthetic',request_key=uuid4())
         with self.assertRaises(DemoBook.DoesNotExist):reconcile(dealership_id=self.other.pk,book_id=book.pk)
 
+    def test_inactive_actor_cannot_open_receive_or_reverse(self):
+        book=self.open();receipt,_=self.receipt(book)
+        actor=self.users['staff'];actor.is_active=False;actor.save(update_fields=['is_active'])
+        with self.assertRaises(PermissionDenied):open_book(**{**self.open_args,'request_key':uuid4()})
+        with self.assertRaises(PermissionDenied):self.receipt(book)
+        with self.assertRaises(PermissionDenied):
+            reverse_receipt(dealership_id=self.dealer.pk,book_id=book.pk,posting_id=receipt.pk,
+                actor=actor,effective_on=self.today,reason='Synthetic correction',request_key=uuid4())
+        self.assertEqual(book.postings.count(),2)
+        self.assertTrue(reconcile(dealership_id=self.dealer.pk,book_id=book.pk)['balanced'])
+
     @override_settings(DEMO_LEDGER_ENABLED=False)
     def test_gate_disables_all_mutations_and_reconciliation(self):
         with self.assertRaises(PermissionDenied):self.open()

@@ -41,3 +41,30 @@ facd9c42f190
 /Deal Reports_files/
 /BHPH Reports.html
 /BHPH Reports_files/
+
+# Legacy assets of unresolved provenance; local hosting state
+/old.html
+/old_files/
+.wrangler/
+
+# Private captures may also be saved below the project root
+DealerCenter*
+Deal Reports.html
+Deal Reports_files/
+BHPH Reports.html
+BHPH Reports_files/
+
+# Local data, exports and credential containers (including SQLite sidecars)
+*.sqlite3-*
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.sql.gz
+*.backup
+*.bak
+exports/
+.ssh/
+secrets/
+*.p12
+*.pfx

@@ -12,7 +12,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_GET
 from core.access import context, member_view, require_editor
-from core.models import Membership
+from core.models import Dealership, Membership
 from .models import DraftDeal, DealFollowUp, FollowUpEvent
 
 
@@ -42,10 +42,25 @@ def snapshot(task):
 
 
 def save_form(request,form,deal,task=None):
-    """Caller locks the scoped parent; lifecycle uses the same parent lock."""
-    if not Membership.objects.filter(user=request.user,dealership=deal.dealership,role__in=[Membership.Role.OWNER,Membership.Role.STAFF]).exists():
-        raise PermissionDenied
+    """Caller holds dealership and scoped deal locks in an atomic transaction."""
     data=form.cleaned_data
+    assignee=data['assigned_to']
+    user_ids=sorted({request.user.pk} | ({assignee.pk} if assignee else set()))
+    # Stable order also handles the actor being the assignee. Lock both tables:
+    # role/dealership live on Membership, while active status lives on User.
+    memberships={m.user_id:m for m in Membership.objects.select_for_update().filter(user_id__in=user_ids).order_by('user_id')}
+    users={u.pk:u for u in get_user_model().objects.select_for_update().filter(pk__in=user_ids).order_by('pk')}
+    def authorized(user_id):
+        member=memberships.get(user_id)
+        user=users.get(user_id)
+        return bool(member and user and user.is_active and member.dealership_id==deal.dealership_id and member.role in (Membership.Role.OWNER,Membership.Role.STAFF))
+    if not authorized(request.user.pk):
+        raise PermissionDenied
+    if task is not None and task.deal_id != deal.pk:
+        raise PermissionDenied
+    if assignee and not authorized(assignee.pk):
+        form.add_error('assigned_to','Choose a current staff member from this dealership.')
+        return None,409
     if task is None:
         prior=deal.follow_ups.filter(creation_key=data['creation_key']).first()
         if prior:
@@ -64,10 +79,6 @@ def save_form(request,form,deal,task=None):
             return task,200
         action='completed' if data['completed'] and not task.completed_at else 'reopened' if not data['completed'] and task.completed_at else 'updated'
         task.revision+=1
-    assignee=data['assigned_to']
-    if assignee and not Membership.objects.filter(user=assignee,user__is_active=True,dealership=deal.dealership,role__in=[Membership.Role.OWNER,Membership.Role.STAFF]).exists():
-        form.add_error('assigned_to','Choose a current staff member from this dealership.')
-        return None,409
     for key in ('title','detail','assigned_to','due_on'):setattr(task,key,data[key])
     if data['completed'] and not task.completed_at:
         task.completed_at=timezone.now();task.completed_by=request.user
@@ -85,6 +96,8 @@ def editor(request,pk,task_pk=None):
     require_editor(request)
     status=200
     with transaction.atomic():
+        if request.method=='POST':
+            Dealership.objects.select_for_update().get(pk=request.member.dealership_id)
         choices=DraftDeal.objects.filter(dealership=request.member.dealership)
         deal=get_object_or_404(choices.select_for_update() if request.method=='POST' else choices,pk=pk)
         task=get_object_or_404(deal.follow_ups.select_for_update() if request.method=='POST' else deal.follow_ups,pk=task_pk) if task_pk else None

@@ -33,6 +33,8 @@ def change_state(request, pk):
         related = [deal.vehicle, deal.buyer] + ([deal.co_buyer] if deal.co_buyer_id else [])
         if any(record.dealership_id != request.member.dealership_id for record in related):
             raise Http404
+        if DraftDeal.objects.filter(pk=deal.pk,demo_completion__isnull=False).exists():
+            return render(request,'deals/completed_blocked.html',context(request,deal=deal),status=409)
         action = 'restore' if deal.archived_at else 'archive'
         form = LifecycleForm(request.POST if request.method=='POST' else None, initial={'revision':deal.revision,'action':action})
         status = 200

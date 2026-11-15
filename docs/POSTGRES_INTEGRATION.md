@@ -1,8 +1,16 @@
 # Isolated PostgreSQL integration environment
 
-## Outcome
+Source review: November 13, 2026, against `dev/postgres.sh`, base settings and
+the disposable restore script. Commands below were inspected, not executed.
+All test counts, browser results, environment observations and private evidence
+paths below are historical October 2026 reports, not current verification. See
+[remaining work](REMAINING_WORK.md) for later recorded checks and
+[the disposable restore exercise](SYNTHETIC_RESTORE_EXERCISE.md) for its separate
+script, temporary paths and November verification scope.
 
-The original QEMU VM remains offline in the current execution environment: `/dev/kvm` is unavailable, SSH on loopback 2223 refuses connections, and the signed-in account cannot access the host Docker socket. Neither Docker group membership nor the VM disk was changed. No privileged host installation was performed.
+## Historical outcome (October 2026)
+
+At that historical check, the original QEMU VM was offline in the execution environment: `/dev/kvm` was unavailable, SSH on loopback 2223 refused connections, and the signed-in account could not access the host Docker socket. Neither Docker group membership nor the VM disk was changed. No privileged host installation was performed.
 
 A separate PostgreSQL **17.11** instance was built from [official source](https://www.postgresql.org/ftp/source/v17.11/) after checking its published SHA-256. Build, installation, cluster, socket, logs, backups and media all live under ignored `.local/pg-integration/`. This is an optional developer toolchain, not production hosting or a bundled PostgreSQL distribution.
 
@@ -10,7 +18,9 @@ The cluster listens on **no TCP addresses**. It uses an owner-only directory/soc
 
 ## Existing checkout commands
 
-From the project root:
+These commands require an existing `.venv/bin/python` with project dependencies,
+an already initialized dedicated cluster, and the database described below.
+From the project root (run individually as needed, not as a setup/reset batch):
 
 ```sh
 ./dev/postgres.sh status
@@ -21,13 +31,13 @@ From the project root:
 ./dev/postgres.sh stop
 ```
 
-`start` only starts an already initialized cluster; it never resets or initializes data. `stop` stops the integration database and affects any local preview using it. The helper explicitly sets PostgreSQL mode, avoiding an inherited SQLite opt-in. Set `RAILET_PG_BIN` to an existing compatible PostgreSQL tools directory when using a different local installation. It does not modify shell startup or system services.
+`start` only starts an already initialized cluster; it never resets or initializes data. `stop` stops the integration database and affects any local preview using it. The helper explicitly sets PostgreSQL mode, avoiding an inherited SQLite opt-in. Set `RAILET_PG_BIN` to an existing compatible PostgreSQL tools directory when using a different local installation. It does not modify shell startup or system services. The helper fixes the data/socket paths, database name and current Unix username; `RAILET_PG_BIN` changes only the tool directory. It forces DEBUG on and SQLite off for management commands but does not sanitize the rest of the environment (including private-media/settings overrides or libpq options). Use a dedicated synthetic environment and review inherited overrides before use; it does not verify an already-running cluster's authentication/listener configuration. Do not reinitialize an existing data directory. Migration is an explicit schema mutation; back up existing database and private files and review the upgrade separately.
 
 On another workstation, install or build PostgreSQL 17 through your preferred trusted mechanism; initialize a separate development-only cluster under `.local/pg-integration/data`, create `.local/pg-integration/socket` owner-only, and create database `railet_integration` owned by your current Unix username. Do not point this helper at production data. The cluster used here was initialized with UTF-8, `--no-locale`, `--auth-local=trust`, `--auth-host=reject`, and started with empty `listen_addresses` and `unix_socket_permissions=0700`. No cluster initialization is hidden inside test commands.
 
 ## Migrations and verification
 
-Every current migration applied successfully to the fresh PostgreSQL integration database, including pending feedback, retained packets/export auditing, draft archival/follow-ups and the new finance demo. **This does not migrate or validate the original VM's existing data.** Existing-data upgrade/cutover remains a separate exercise.
+Every migration present at that historical slice applied successfully to the fresh PostgreSQL integration database, including pending feedback, retained packets/export auditing, draft archival/follow-ups and the new finance demo. **This does not migrate or validate the original VM's existing data.** Existing-data upgrade/cutover remains a separate exercise.
 
 The full PostgreSQL suite passed **237 tests with no skips** in 104.155 seconds. This includes the previously skipped concurrency tests and new tests for feedback retry, packet retry, archive retry, follow-up retry, archive-versus-packet ordering, ledger opening/receipt retry, competing reversals and database insert/append-only guards. A later focused finance rerun passed all 21 tests without skips after the consistent journal-read transaction was added. System and migration drift checks passed.
 

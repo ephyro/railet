@@ -1,0 +1,14 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}
+{% block title %}Export customer data{% endblock %}
+{% block content %}
+<p><a href="{% url 'customers' %}">Back to customers</a></p>
+<h1>Export customer data</h1>
+<section class="panel">
+  <p class="notice"><strong>Synthetic workspace only.</strong> Export invented data only.</p>
+  <p>The JSON contains this dealership’s customer records, activities, and change history, including contact information, unredacted notes and user IDs. It does not include deals, vehicles, accounts, uploaded documents or user records.</p>
+  <p><strong>This is not a complete backup.</strong> There is no restore function. The export uses multiple database queries and may reflect changes made during preparation; stop customer changes during export if consistency matters.</p>
+  <p>The file is not encrypted. Store it privately. Preparing a download records your account, the dealership, time, format, file size and hash, but not the customer contents. An audit record confirms preparation, not receipt.</p>
+  <form method="post" action="{% url 'customer_export_download' %}">{% csrf_token %}<button class="button" type="submit">Download customer JSON</button></form>
+</section>
+{% endblock %}

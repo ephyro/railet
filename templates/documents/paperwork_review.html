@@ -1,0 +1,39 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}
+{% block title %}Paperwork review · Demo{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <a href="{% url 'demo_packet_detail' packet.deal_id packet.pk %}">Back to demo packet</a>
+  <h1>Paperwork review</h1>
+  <p>Demo deal #{{ packet.deal_id }} · {{ snapshot.vehicle.description }} · {{ snapshot.buyer.name }}</p>
+</section>
+<section class="panel">
+  <p class="notice"><strong>Practice only.</strong> These are topics to review, not a complete list of required documents or a finding that this deal is ready. No legal forms or signatures are created here.</p>
+  <p>Based on the snapshot saved {{ packet.created_at|date:'M j, Y · g:i A' }}. Deal type: {{ snapshot.deal_type|default:'Not recorded' }}. </p>
+  <h2>Vehicle title and mileage</h2>
+  <p>Check ownership, the recorded title brand, odometer information, lien details, and which current state forms apply. A missing or unverified brand needs review; it does not mean the vehicle is unbranded.</p>
+  <p><a href="{% url 'title_practice' packet.deal_id packet.pk %}">Open title preparation practice</a> · <a href="https://www.flhsmv.gov/pdf/forms/82040.pdf" target="_blank" rel="noopener noreferrer">Official Florida title application</a></p>
+  <h2>Used vehicle disclosures</h2>
+  <p>Review whether the FTC Buyers Guide applies, the vehicle’s warranty terms, and any applicable display, language and delivery requirements.</p>
+  <p><a href="https://www.ftc.gov/business-guidance/resources/dealers-guide-used-car-rule" target="_blank" rel="noopener noreferrer">FTC Buyers Guide instructions</a></p>
+  <h2>Sale and financing documents</h2>
+  <p>Confirm the sale terms and identify the documents appropriate to the transaction. If credit is involved, review the contract and applicable disclosures with a qualified reviewer. The draft estimate is not the amount financed or an APR disclosure.</p>
+  <p><a href="{% url 'finance_practice' packet.deal_id packet.pk %}">Open deal terms practice</a> · <a href="https://www.consumerfinance.gov/rules-policy/regulations/1026/18/" target="_blank" rel="noopener noreferrer">Federal closed-end disclosure requirements</a></p>
+  <h2>Documents to investigate</h2>
+  <p>This research inventory suggests topics for review; it does not decide applicability. Missing information below is limited to a few captured facts and does not establish that the other required facts are present. Trade documents are shown when a trade was recorded; confirm whether there is a trade.</p>
+  {% for item in references %}<article>
+    <h3>{{ item.reference.name }}</h3>
+    <p>{{ item.reference.applicability }}</p>
+    {% if item.missing %}<p><strong>Not recorded or not verified:</strong> {{ item.missing|join:", " }}.</p>{% endif %}
+    <details><summary>Source and review details</summary>
+      <p>Source owner: {{ item.reference.publisher }}. Form revision: {{ item.reference.revision }}.</p>
+      <p>Use and permissions: {{ item.reference.rights }}.</p>
+      <p>Review needed: {{ item.reference.review }}</p>
+      <p><a href="{{ item.reference.source }}" target="_blank" rel="noopener noreferrer">Open source reference</a></p>
+    </details>
+  </article>{% endfor %}
+  <p>Research inventory {{ registry_version }}. This is the current inventory applied to the saved snapshot, not a preserved form or approval record.</p>
+  <h2>Copies and retention</h2>
+  <p>Determine what must be signed, delivered, filed and retained for the transaction. This practice screen does not record delivery or preserve signed paperwork.</p>
+</section>
+{% endblock %}

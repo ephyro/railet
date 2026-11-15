@@ -1,0 +1,11 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}
+{% block title %}Review duplicate VINs{% endblock %}
+{% block content %}
+<section class="page-heading"><div><a href="{% url 'inventory' %}">← Vehicles</a><h1>Review duplicate VINs</h1><p>Vehicle records with matching VINs in this test workspace.</p></div></section>
+<p class="muted">A match does not confirm a mistake or a reacquisition. This report only shows records; it does not merge or change them. Large groups may continue on the next page.</p>
+<section class="panel records-panel"><div class="table-wrap" tabindex="0" role="region" aria-label="Duplicate VIN records">
+<table class="records-table"><thead><tr><th scope="col">VIN</th><th scope="col">Stock and vehicle</th><th scope="col">Status</th></tr></thead><tbody>
+{% for vehicle in vehicles %}<tr><td>{{ vehicle.normalized_vin }}</td><td><a href="{% url 'vehicle_detail' vehicle.pk %}">Stock {{ vehicle.stock_number }} · {{ vehicle }}</a></td><td>{{ vehicle.get_status_display }}</td></tr>{% empty %}<tr><td colspan="3">No matching nonblank VINs found.</td></tr>{% endfor %}
+</tbody></table></div>{% include 'shared/pagination.html' %}</section>
+{% endblock %}

@@ -1,9 +1,12 @@
 # SPDX-License-Identifier: MPL-2.0
 """Read-only synthetic receipt register; no settlement or allocation decisions."""
 from datetime import datetime,time,timedelta
+import csv
+import io
 from urllib.parse import urlencode
 from django import forms
 from django.core.paginator import Paginator
+from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.http import require_GET
@@ -71,6 +74,30 @@ def signed_money(cents):
     return '-'+money(-cents) if cents<0 else money(cents)
 
 
+def csv_response(entries, *, basis, start, end):
+    """Render the already-bounded capture; only untrusted text needs escaping."""
+    from .account_exports import csv_cell
+    output = io.StringIO(newline='')
+    writer = csv.writer(output)
+    writer.writerow(['Scope', 'Date basis', 'From', 'Through', 'Account #', 'Customer',
+                     'Entry #', 'Type', 'Original receipt #', 'Method', 'Amount USD',
+                     'Recorded at (local with offset)', 'Effective date', 'Reference', 'Recorded by'])
+    for entry in entries:
+        amount = entry.amount_cents if entry.kind == 'receipt' else -entry.amount_cents
+        sign = '-' if amount < 0 else ''
+        absolute = abs(amount)
+        writer.writerow(['Synthetic · unapplied', basis, start.isoformat(), end.isoformat(), entry.book_id,
+            csv_cell(str(entry.book.customer)), entry.pk, 'Receipt' if entry.kind == 'receipt' else 'Reversal',
+            entry.reverses_id or '', csv_cell(entry.get_payment_method_display()),
+            f'{sign}{absolute // 100}.{absolute % 100:02d}',
+            timezone.localtime(entry.entered_at).isoformat(), entry.effective_on.isoformat(),
+            csv_cell(entry.reason), csv_cell(entry.actor.get_username())])
+    response = HttpResponse(output.getvalue().encode('utf-8-sig'), content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = 'attachment; filename="DEMO-unapplied-payment-activity.csv"'
+    response['Content-Security-Policy'] = 'sandbox'
+    return response
+
+
 @demo_page
 @member_view
 @require_GET
@@ -81,6 +108,10 @@ def register(request):
     if form.is_valid():
         try:entries,totals=capture(dealership_id=request.member.dealership_id,**form.cleaned_data)
         except ValueError as error:form.add_error(None,str(error))
+    if request.GET.get('format') == 'csv':
+        if form.errors or totals is None:
+            return HttpResponse('Invalid filters or too many entries. No CSV was prepared.', status=400, content_type='text/plain')
+        return csv_response(entries, **form.cleaned_data)
     selected_day=form.cleaned_data.get('start') if form.is_valid() and form.cleaned_data['start']==form.cleaned_data['end'] else None
     links=[]
     if selected_day:
@@ -96,4 +127,5 @@ def register(request):
         corrections=money(totals['corrections_cents']) if totals else None,
         net=signed_money(totals['net_cents']) if totals else None,
         basis=params.get('basis'),display_zone=str(timezone.get_current_timezone()),
-        pagination_query=urlencode({key:params.get(key) for key in ('basis','start','end')})))
+        pagination_query=urlencode({key:params.get(key) for key in ('basis','start','end')}),
+        csv_query=urlencode({**{key:params.get(key) for key in ('basis','start','end')}, 'format':'csv'})))

@@ -16,17 +16,37 @@ def records(request):
 
 @member_view
 def customer_list(request):
+    from django.http import QueryDict
     filters = filter_context(request, SCHEMA)
     state = filters["filter_state"]
-    page = Paginator(state.apply(search_customers(request.member.dealership, state.query)), 25).get_page(request.GET.get("page"))
-    return render(request, "customers/list.html", context(request, **filters, customers=page, page_obj=page, query=state.query))
+    customers = search_customers(request.member.dealership, state.query)
+    stage = state.extra.get("stage", "")
+    if stage == "unspecified":
+        customers = customers.filter(lead_stage="")
+    elif stage:
+        customers = customers.filter(lead_stage=stage)
+    page = Paginator(state.apply(customers), 25).get_page(request.GET.get("page"))
+    stage_tabs = []
+    options = [("", "All customers"), *( (k, v) for k, v in Customer.LeadStage.choices if k ), ("unspecified", "Stage not set")]
+    for value, label in options:
+        params = QueryDict(state.querystring, mutable=True)
+        if value:
+            params["stage"] = value
+        else:
+            params.pop("stage", None)
+        stage_tabs.append({"label": label, "query": params.urlencode(), "active": stage == value})
+    from django.conf import settings
+    export_enabled = settings.DEBUG and getattr(settings, "CUSTOMER_ACTIVITY_DEMO_ENABLED", False)
+    package_flags = ("DEBUG", "CUSTOMER_ACTIVITY_DEMO_ENABLED", "RECON_DEMO_ENABLED", "DEMO_COMPLETION_ENABLED", "DEMO_PACKETS_ENABLED", "DEAL_FILES_DEMO_ENABLED", "DEMO_LEDGER_ENABLED", "DEMO_SERVICING_ENABLED")
+    package_enabled = all(getattr(settings, flag, False) for flag in package_flags)
+    return render(request, "customers/list.html", context(request, customer_export_enabled=export_enabled, package_export_enabled=package_enabled, **filters, customers=page, page_obj=page, query=state.query, stage=stage, stage_tabs=stage_tabs))
 
 @member_view
 def customer_detail(request, pk):
     from finance.account_services import customer_accounts
     customer = get_object_or_404(records(request), pk=pk)
-    drafts = (customer.buyer_drafts.filter(dealership=request.member.dealership) | customer.co_buyer_drafts.filter(dealership=request.member.dealership)).select_related("vehicle").distinct()
-    return render(request, "customers/detail.html", context(request, customer=customer, drafts=drafts, accounts=customer_accounts(dealership_id=request.member.dealership_id, customer_id=customer.pk)[:20], events=customer.events.select_related("actor")[:20]))
+    drafts = (customer.buyer_drafts.filter(dealership=request.member.dealership) | customer.co_buyer_drafts.filter(dealership=request.member.dealership)).select_related("vehicle", "demo_completion").distinct()
+    return render(request, "customers/detail.html", context(request, customer=customer, drafts=drafts, accounts=customer_accounts(dealership_id=request.member.dealership_id, customer_id=customer.pk)[:20], activities=customer.activities.select_related("created_by", "completed_by", "assigned_to")[:25], events=customer.events.select_related("actor")[:20]))
 
 def editor(request, pk=None):
     require_editor(request)

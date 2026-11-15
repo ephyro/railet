@@ -2,8 +2,9 @@
 import hashlib,json
 from datetime import date
 from django.db import transaction
+from core.models import Dealership
 from .models import DemoBook,DemoSchedule
-from .services import require_demo,require_member,key,LedgerError
+from .services import require_demo,require_posting_member,key,LedgerError
 from .schedules import calculate,VERSION
 
 
@@ -22,8 +23,10 @@ def calculate_for_book(book,inputs):
 
 @transaction.atomic
 def save_illustration(*,dealership_id,book_id,actor,inputs,expected_digest,creation_key):
-    require_demo();require_member(actor,dealership_id);creation_key=key(creation_key)
+    require_demo();creation_key=key(creation_key)
+    Dealership.objects.select_for_update().get(pk=dealership_id)
     book=DemoBook.objects.select_for_update(of=('self',)).get(pk=book_id,dealership_id=dealership_id,customer__dealership_id=dealership_id)
+    require_posting_member(actor,dealership_id)
     prior=book.schedule_illustrations.filter(creation_key=creation_key).first()
     if prior:
         if prior.inputs!=inputs or prior.result_sha256!=expected_digest or prior.created_by_id!=actor.pk:

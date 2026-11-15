@@ -187,3 +187,46 @@ class FollowUpEvent(models.Model):
 
     class Meta:
         ordering = ['-created_at', '-pk']
+
+
+class DemoDealCompletion(models.Model):
+    """Frozen internal completion rehearsal, never a sale/contract/loan."""
+    deal = models.OneToOneField(DraftDeal, on_delete=models.PROTECT, related_name='demo_completion')
+    packet = models.OneToOneField('documents.DemoDealPacket', on_delete=models.PROTECT, related_name='completion')
+    source_revision = models.PositiveIntegerField()
+    source_sha256 = models.CharField(max_length=64)
+    artifact_sha256 = models.CharField(max_length=64)
+    review_sha256 = models.CharField(max_length=64)
+    metadata = models.JSONField()
+    review_notes = models.CharField(max_length=1000, blank=True)
+    creation_key = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+    policy_version = models.CharField(max_length=40, default='demo-completion-v1', editable=False)
+
+    class Meta:
+        ordering = ['-created_at', '-pk']
+        constraints = [models.CheckConstraint(condition=models.Q(policy_version='demo-completion-v1'), name='demo_completion_policy_known')]
+
+
+class DemoCompletionVoid(models.Model):
+    """Immutable internal rehearsal record; never a legal cancellation."""
+    completion = models.OneToOneField(DemoDealCompletion, on_delete=models.PROTECT, related_name='void_rehearsal')
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    reason = models.CharField(max_length=1000)
+    review_sha256 = models.CharField(max_length=64)
+    creation_key = models.UUIDField(unique=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    policy_version = models.CharField(max_length=40, default='demo-completion-void-v1', editable=False)
+
+
+class DemoFollowOnDraft(models.Model):
+    """Immutable synthetic follow-on draft provenance from a voided completion rehearsal."""
+    void_rehearsal = models.OneToOneField(DemoCompletionVoid, on_delete=models.PROTECT, related_name='follow_on_draft')
+    draft = models.OneToOneField(DraftDeal, on_delete=models.PROTECT, related_name='source_follow_on')
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    reason = models.CharField(max_length=1000)
+    review_sha256 = models.CharField(max_length=64)
+    creation_key = models.UUIDField(unique=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    policy_version = models.CharField(max_length=40, default='demo-follow-on-draft-v1', editable=False)

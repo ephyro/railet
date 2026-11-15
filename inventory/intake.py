@@ -5,6 +5,7 @@ from django.db import transaction
 from core.models import AuditEvent, Dealership
 from .models import Vehicle
 from .identity import ODOMETER_FIELDS
+from .vin_matching import matching_vehicles
 
 IDENTITY_FIELDS = ("vin", "year", "make", "model", "title_brand", *ODOMETER_FIELDS)
 
@@ -13,7 +14,7 @@ IDENTITY_FIELDS = ("vin", "year", "make", "model", "title_brand", *ODOMETER_FIEL
 def create_trade_vehicle(*, dealership, actor, identity, stock_number, acquisition_cost, title_received, source_trade_id):
     # Serialize intake duplicate checks within a dealership; stock uniqueness is also a DB constraint.
     Dealership.objects.select_for_update().get(pk=dealership.pk)
-    if identity["vin"] and Vehicle.objects.filter(dealership=dealership, vin__iexact=identity["vin"]).exists():
+    if matching_vehicles(dealership=dealership, vin=identity["vin"]).exists():
         raise ValidationError("A vehicle with this VIN is already in this dealership's inventory. Review that vehicle before creating another record.")
     vehicle = Vehicle(dealership=dealership, stock_number=stock_number,
                       acquisition_cost=acquisition_cost, title_received=title_received,

@@ -1,5 +1,10 @@
 # SPDX-License-Identifier: MPL-2.0
+from importlib import import_module
 from django.db import migrations,models
+
+
+def restore_sqlite_guards(apps, editor):
+    import_module('finance.migrations.0009_export_audit_immutable').restore_sqlite_guards(apps, editor)
 
 
 def add_column(apps,schema_editor):
@@ -37,4 +42,6 @@ class Migration(migrations.Migration):
     operations=[migrations.SeparateDatabaseAndState(
         database_operations=[migrations.RunPython(add_column,remove_column)],
         state_operations=[migrations.AddField(model_name='demoposting',name='payment_method',field=models.CharField(max_length=16,choices=[('unspecified','Not recorded'),('cash','Cash'),('check','Check'),('other','Other')],default='unspecified'))]),
-        migrations.AlterField(model_name='demoaccountexport',name='format_version',field=models.CharField(default='demo-account-export-v4',max_length=40))]
+        migrations.RunPython(migrations.RunPython.noop, restore_sqlite_guards),
+        migrations.AlterField(model_name='demoaccountexport',name='format_version',field=models.CharField(default='demo-account-export-v4',max_length=40)),
+        migrations.RunPython(restore_sqlite_guards, migrations.RunPython.noop)]

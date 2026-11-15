@@ -1,0 +1,2 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}{% block content %}<section class="page-heading"><h1>Review Deal #{{ deal.pk }}</h1><p role="alert">{{ error }}</p></section><a class="button" href="{% url 'deal_detail' deal.pk %}">Return to deal</a>{% endblock %}

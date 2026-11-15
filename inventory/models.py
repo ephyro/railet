@@ -32,17 +32,32 @@ class Vehicle(models.Model):
     odometer_unit = models.CharField(max_length=10, choices=OdometerUnit.choices, default=OdometerUnit.UNKNOWN)
     odometer_status = models.CharField(max_length=12, choices=OdometerStatus.choices, default=OdometerStatus.UNKNOWN)
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.ACQUIRED)
+    acquired_on = models.DateField(null=True, blank=True, verbose_name="Acquisition date", help_text="Enter the date this stock was acquired, if known.")
+    sold_on = models.DateField(null=True, blank=True, verbose_name="Recorded sale date", help_text="Optional staff-entered historical date when status is Sold. Not verified proof of a sale.")
     acquisition_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal("0"))])
     recon_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0, validators=[MinValueValidator(Decimal("0"))])
+    asking_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal("0"))], help_text="Optional asking price. Leave blank until a price is chosen.")
     notes = models.TextField(blank=True, help_text="Vehicle notes only. Do not enter customer or financial account information.")
     updated_at = models.DateTimeField(auto_now=True)
     revision = models.PositiveIntegerField(default=1, editable=False)
     class Meta:
         ordering = ["-updated_at", "-pk"]
-        constraints = [models.UniqueConstraint(fields=["dealership", "stock_number"], name="unique_dealer_stock"), models.CheckConstraint(condition=models.Q(acquisition_cost__gte=0, recon_cost__gte=0), name="vehicle_costs_nonnegative")]
+        constraints = [models.UniqueConstraint(fields=["dealership", "stock_number"], name="unique_dealer_stock"), models.CheckConstraint(condition=models.Q(acquisition_cost__gte=0, recon_cost__gte=0), name="vehicle_costs_nonnegative"), models.CheckConstraint(condition=models.Q(asking_price__isnull=True) | models.Q(asking_price__gte=0), name="vehicle_asking_nonnegative")]
     @property
     def total_cost(self):
-        return self.acquisition_cost + self.recon_cost
+        return self.acquisition_cost + self.recon_cost + self.itemized_cost
+    @property
+    def asking_less_cost(self):
+        return None if self.asking_price is None else self.asking_price - self.total_cost
+
+    @property
+    def itemized_cost(self):
+        if hasattr(self, "registered_cost_cents"):
+            return Decimal(self.registered_cost_cents) / 100
+        from .reconditioning import with_cost_totals
+        cents = with_cost_totals(type(self).objects.filter(pk=self.pk)).values_list("registered_cost_cents", flat=True).first() if self.pk else 0
+        return Decimal(cents or 0) / 100
+
     def __str__(self):
         return f"{self.year} {self.make} {self.model}"
 
@@ -69,3 +84,6 @@ class VehiclePhoto(models.Model):
     class Meta:
         ordering = ["-is_primary", "pk"]
         constraints = [models.UniqueConstraint(fields=["vehicle"], condition=models.Q(is_primary=True, archived_at__isnull=True), name="one_active_vehicle_cover")]
+
+# Keep inventory's work/cost records explicit without creating another service.
+from .reconditioning_models import VehicleVendor, VehicleVendorEvent, ReconTask, VehicleCostEntry  # noqa: E402,F401

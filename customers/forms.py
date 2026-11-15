@@ -14,8 +14,8 @@ class CustomerForm(forms.ModelForm):
     revision = forms.IntegerField(widget=forms.HiddenInput, required=False, min_value=1)
     class Meta:
         model = Customer
-        fields = ["first_name", "last_name", "phone", "email", *ADDRESS_FIELDS]
-        labels = {"phone": "Phone (optional)", "email": "Email (optional)", "address_line1": "Street address", "address_line2": "Apartment / suite", "city": "City", "region": "State / region", "postal_code": "ZIP / postal code", "country": "Country"}
+        fields = ["first_name", "last_name", "phone", "email", "lead_stage", *ADDRESS_FIELDS]
+        labels = {"phone": "Phone (optional)", "email": "Email (optional)", "lead_stage": "Sales lead stage (optional)", "address_line1": "Street address", "address_line2": "Apartment / suite", "city": "City", "region": "State / region", "postal_code": "ZIP / postal code", "country": "Country"}
         widgets = {"phone": forms.TextInput(attrs={"type": "tel", "autocomplete": "tel"}), "email": forms.EmailInput(attrs={"autocomplete": "email"}), "first_name": forms.TextInput(attrs={"autocomplete": "given-name"}), "last_name": forms.TextInput(attrs={"autocomplete": "family-name"})}
     def __init__(self, *args, dealership, **kwargs):
         instance = kwargs.get('instance')
@@ -23,7 +23,7 @@ class CustomerForm(forms.ModelForm):
         if instance is not None and instance.pk and posted is not None:
             posted = posted.copy()
             prefix = kwargs.get('prefix')
-            for name in ADDRESS_FIELDS:
+            for name in ('lead_stage', *ADDRESS_FIELDS):
                 key = f'{prefix}-{name}' if prefix else name
                 if key not in posted:
                     posted[key] = getattr(instance, name)

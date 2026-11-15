@@ -15,6 +15,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, TransactionTestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from django.utils import timezone
 
 from core.models import AuditEvent, Dealership, Membership
 from .models import Vehicle, VehiclePhoto
@@ -90,6 +91,64 @@ class VehiclePhotoTests(TestCase):
         self.assertEqual(self.client.get(url).status_code, 404)
         self.client.logout()
         self.assertEqual(self.client.get(url).status_code, 302)
+
+    def test_private_photo_role_archive_and_failure_matrix(self):
+        self.upload()
+        photo = VehiclePhoto.objects.get()
+        urls = [reverse("vehicle_photo_file", args=[photo.pk]), reverse("vehicle_photo_thumbnail", args=[photo.pk])]
+        for role in ("owner", "staff", "viewer"):
+            Membership.objects.filter(user=self.user).update(role=role)
+            for url in urls:
+                for method in (self.client.get, self.client.head):
+                    response = method(url)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response["Cache-Control"], "private, no-store")
+                    if response.streaming and response.file_to_stream:
+                        response.file_to_stream.close()
+        photo.archived_at = timezone.now()
+        photo.save(update_fields=["archived_at"])
+        for role, expected in (("owner", 200), ("staff", 200), ("viewer", 404)):
+            Membership.objects.filter(user=self.user).update(role=role)
+            for url in urls:
+                response = self.client.get(url)
+                self.assertEqual(response.status_code, expected)
+                self.assertEqual(response["Cache-Control"], "private, no-store")
+                if response.streaming and response.file_to_stream:
+                    response.file_to_stream.close()
+        self.client.force_login(self.foreign_user)
+        for url in urls:
+            for method in (self.client.get, self.client.head, self.client.post):
+                response = method(url)
+                self.assertIn(response.status_code, (404, 405))
+                self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.client.logout()
+        self.assertEqual(self.client.get(urls[0])["Cache-Control"], "private, no-store")
+        unassigned = get_user_model().objects.create_user(username="photo-no-membership")
+        self.client.force_login(unassigned)
+        response = self.client.get(urls[0])
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.client.force_login(self.user)
+        Membership.objects.filter(user=self.user).update(role="owner")
+        with patch.object(photo.image.storage, "open", side_effect=OSError("unavailable")):
+            response = self.client.get(urls[0])
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+
+    def test_private_photo_rejects_cross_dealer_path_aliases(self):
+        self.upload()
+        own = VehiclePhoto.objects.get()
+        self.client.force_login(self.foreign_user)
+        self.upload(vehicle=self.foreign)
+        other = VehiclePhoto.objects.get(vehicle=self.foreign)
+        self.client.force_login(self.user)
+        url = reverse("vehicle_photo_file", args=[own.pk])
+        original = own.image.name
+        VehiclePhoto.objects.filter(pk=own.pk).update(image=other.image.name.replace("vehicles/", "vehicles/./"))
+        self.assertEqual(self.client.get(url).status_code, 404)
+        VehiclePhoto.objects.filter(pk=own.pk).update(image=original)
+        VehiclePhoto.objects.filter(pk=other.pk).update(thumbnail=original.replace("vehicles/", "vehicles/./"))
+        self.assertEqual(self.client.get(url).status_code, 404)
 
     def test_cover_hide_and_restore_preserve_files_and_one_visible_cover(self):
         self.upload([photo_file(), photo_file(color="red")])

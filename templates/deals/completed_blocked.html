@@ -1,0 +1,2 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}{% block content %}<section class="page-heading"><h1>This completion rehearsal is frozen</h1><p>The reviewed figures, parties, trade and terms cannot be edited or archived.</p></section><p><a class="button" href="{% url 'deal_completion' deal.pk %}">Open completion record</a></p><p>Use a new draft to practice different figures. This record does not represent a real sale.</p>{% endblock %}

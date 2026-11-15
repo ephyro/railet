@@ -1,0 +1,10 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}
+{% block title %}Vendor invoices{% endblock %}
+{% block content %}
+<p><a href="{% url 'vehicle_recon' vehicle.pk %}">Back to work and costs</a></p>
+<h1>Vendor invoices</h1><p>{{ vehicle }} · Stock {{ vehicle.stock_number }}</p>
+<p class="notice">Synthetic PDFs only. Invoices are retained and do not create payments or accounting entries.</p>
+{% if member.can_manage_inventory %}<section class="panel"><h2>Add an invoice</h2><form method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.as_p }}<button class="button" type="submit">Save invoice</button></form></section>{% endif %}
+<section class="panel"><h2>Saved invoices</h2><ul>{% for invoice in invoices %}<li><a href="{% url 'vehicle_invoice_download' vehicle.pk invoice.pk %}">{{ invoice.title }}</a>{% if invoice.cost %} · Cost #{{ invoice.cost.pk }}: {{ invoice.cost.description }}{% else %} · No cost linked{% endif %} · Added {{ invoice.created_at|date:'M j, Y' }} by {{ invoice.created_by.get_username }}</li>{% empty %}<li>No invoices saved.</li>{% endfor %}</ul></section>
+{% endblock %}

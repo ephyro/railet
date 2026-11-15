@@ -57,3 +57,11 @@ Acceptance is for synthetic development; production approval is not granted.
 The overseer's final screenshot review also caught a narrow-screen currency line
 break. The CSS now lets the label and balance occupy separate lines while keeping
 the entire currency value intact. Firefox responsive checks were rerun successfully.
+
+In development, Review and freeze now opens the separately gated
+[completion rehearsal](DEMO_COMPLETION.md). Its confirmation creates a frozen
+internal record; this original review page remains a current-record read. Neither
+is live legal/financial finalization. Completed deals redirect to their frozen
+record instead of showing current canonical facts as historical facts. The
+October 24, 2026 test counts and browser checks above are historical point-in-time
+verification for this slice.

@@ -10,16 +10,19 @@ We're building in public and welcome developers, dealership staff, and IT operat
 
 ## What works today
 
-- Inventory with stock/VIN search, title brands, odometer details, costs, private photos, and duplicate VIN review.
-- Shared customer records reused across buyers, co-buyers, and draft deals.
+- Inventory with stock/VIN search, title brands, odometer details, optional acquisition and sale dates, costs, private photos, duplicate VIN review, and an inventory investment and aging report (with filtered CSV export).
+- Reconditioning work queue with task editing, staff assignment, optional target dates, task-age filters, reusable vendors with optional contact details, itemized internal costs, linked corrections, asking-price comparisons, and filtered CSV exports.
+- Shared customer records reused across buyers, co-buyers, and draft deals, with optional internal sales lead stages, manual customer notes, follow-ups, appointments, queue handoffs, and an offline mock message delivery simulator.
 - A deal desk with visible deal type, inline vehicle/customer entry, pricing, trades, financing proposals, monthly payment illustrations, saved history, and a read-only review.
+- Frozen completion rehearsals with confirmation, retained snapshots, missing-information reminders, a separate completed view, synthetic paperwork-topic research worksheets, and an internal void rehearsal when no BHPH account is linked.
 - Automatic 2026 Florida draft tax estimates using the purchaser’s registration county, with explicit trade/fee controls and manual review for special cases.
-- Synthetic BHPH accounts with opt-in monthly installment coverage, status filters, unapplied receipts, linked reversals, daily payment summaries, private account exports, and printable demo receipts.
-- Private supporting PDFs with authorized downloads, archive/restore, and upload retry protection in development.
+- Synthetic BHPH accounts (including handoff from or linking to completed BHPH rehearsals) with opt-in monthly installment coverage, status filters, unapplied receipts, linked reversals, daily payment summaries, private account exports, and printable demo receipts.
+- Private supporting PDFs (deal files, vehicle vendor invoices, and unverified vehicle acquisition attachments) with authorized downloads and upload retry protection in development. Deal files and acquisition attachments also support archive and restore.
+- Owner-only synthetic customer JSON and multi-module dealership ZIP exports with hash manifests and audited preparation, plus an isolated disposable PostgreSQL/media restore exercise (`dev/restore_exercise.py`).
 - Reusable filters, sorting, pagination, and personal saved views.
 - Dealership scoping, owner/staff/viewer roles, revision checks, and transactional change records.
 
-Draft amounts and payment illustrations are estimates. Florida tax estimation has a narrow researched 2026 profile; manual overrides require a reason. Professional tax/legal review remains required before live use. Monthly payment illustrations are not APR disclosures or contractual daily accrual; synthetic receipts remain unapplied and do not reduce principal. Saving a draft does not sell or reserve a vehicle, create a contract or loan, or record money received. Supporting PDFs are stored as uploaded; they are not scanned or verified. Audit records are not protected from privileged direct database modification.
+Draft amounts and payment illustrations are estimates. Florida tax estimation has a narrow researched 2026 profile; manual overrides require a reason. Professional tax/legal review remains required before live use. Monthly payment illustrations are not APR disclosures or contractual daily accrual; synthetic receipts remain unapplied and do not reduce principal. Saving a draft, completing a rehearsal, or recording a synthetic void rehearsal does not sell, reserve, or legally cancel a vehicle transaction, create or void a contract or loan, or record money received. Reconditioning task statuses, recorded acquisition/sale dates, and private acquisition PDFs are internal staff entries, not safety inspections, sale approvals, or verified ownership evidence. Customer lead stages, follow-ups, and offline mock message events do not record communication consent or send messages. Owner exports and the disposable restore script exclude credentials and personal saved views, do not guarantee a coordinated live point-in-time snapshot, and are not a complete production backup/restore solution. MFA login is not enabled. Supporting PDFs are stored as uploaded; they are not scanned or verified. Audit records are not protected from privileged direct database modification.
 
 ## Try the development build
 
@@ -39,7 +42,7 @@ Code edits reload during development. Stop with `docker compose down`; database 
 
 See [development setup](docs/DEVELOPMENT.md) for local Python, tests, migrations, and architecture. Optional [VM setup](docs/DEVELOPMENT_VM.md) and [staging rehearsal](docs/STAGING_VM.md) are development tools, not a production deployment guide.
 
-For the synthetic workflows, see the [BHPH walkthrough](docs/BHPH_DEMO_WALKTHROUGH.md), [deal desking and Florida tax scope](docs/FLORIDA_DRAFT_TAX.md), and [staff usability session](docs/STAFF_WORKFLOW_TEST.md).
+For the synthetic workflows, see the [BHPH walkthrough](docs/BHPH_DEMO_WALKTHROUGH.md), [deal desking and Florida tax scope](docs/FLORIDA_DRAFT_TAX.md), [vehicle work and costs](docs/VEHICLE_WORK_AND_COSTS.md), and [staff usability session](docs/STAFF_WORKFLOW_TEST.md).
 
 ## Help build it
 
@@ -69,9 +72,9 @@ See [third-party notices](THIRD_PARTY_NOTICES.md) for dependencies. The Railet a
 
 ## Private feedback
 
-**Help & feedback** lets members preview and save workflow reports privately in their installation. Authors and dealership owners can view them; nothing is sent to Ephyro or GitHub. No attachments or diagnostics are collected. Use synthetic examples and remove private information yourself. See [feedback scope and verification](docs/FEEDBACK.md); the new module requires migration and its PostgreSQL VM integration check remains outstanding.
+**Help & feedback** lets members preview and save workflow reports privately in their installation. Authors and dealership owners can view them; nothing is sent to Ephyro or GitHub. No attachments or diagnostics are collected. Use synthetic examples and remove private information yourself. See [feedback scope and verification](docs/FEEDBACK.md).
 
-Saved drafts also offer **Demo packets** in development: preview a synthetic summary and preserve its facts and exact HTML for later inspection. No legal form, transaction finalization, loan, payment, or signature is created. See [demo packet scope and verification](docs/DEMO_PACKETS.md); the new migration still needs PostgreSQL VM integration verification.
+Saved drafts also offer **Demo packets** in development: preview a synthetic summary and preserve its facts, research references, and exact HTML for later inspection. No legal form, transaction finalization, loan, payment, or signature is created. See [demo packet scope and verification](docs/DEMO_PACKETS.md) and [Florida document research](docs/FLORIDA_DOCUMENT_RESEARCH.md).
 
 Drafts can be **archived and restored with reasons**, preserving history and saved packets. Active drafts are shown by default; archived drafts remain accessible through the draft list scope selector. See [draft archiving](docs/DRAFT_ARCHIVING.md) for behavior, migration and verification limits.
 
@@ -83,7 +86,7 @@ Saved demo packets also support a private **ZIP export** with original HTML, cap
 
 ## PostgreSQL integration and synthetic ledger
 
-An optional owner-only local PostgreSQL setup is documented in [POSTGRES_INTEGRATION.md](docs/POSTGRES_INTEGRATION.md), with `dev/postgres.sh` for existing initialized environments. All current migrations and the 237-test suite have been verified on a fresh PostgreSQL 17.11 database; this is separate from the original offline VM and does not validate an upgrade of that VM's data.
+An optional owner-only local PostgreSQL setup is documented in [POSTGRES_INTEGRATION.md](docs/POSTGRES_INTEGRATION.md), with `dev/postgres.sh` for existing initialized environments. The full synthetic suite most recently ran 716 tests on PostgreSQL 17.11 with two skipped, and on SQLite with 60 skipped; see [remaining work](docs/REMAINING_WORK.md) for the scope and current limitations. This local setup is separate from the original offline VM and does not validate an upgrade of that VM's data or staff usability acceptance.
 
 `/ledger-demo/` offers an explicitly synthetic accounting rehearsal: opening provenance, unapplied manual receipts, linked full corrections and reconciliation. Every posting is previewed first. No loan, real payment, allocation, interest or bank settlement is created. See [ledger scope, source review and remaining gates](docs/LEDGER_FOUNDATION.md).
 

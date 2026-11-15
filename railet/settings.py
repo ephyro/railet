@@ -17,7 +17,7 @@ if not SECRET_KEY:
     SECRET_KEY = "local-development-only-not-for-production"
 ALLOWED_HOSTS = os.getenv("RAILET_ALLOWED_HOSTS", "localhost,127.0.0.1,[::1]").split(",")
 INSTALLED_APPS = ["django.contrib.auth", "django.contrib.contenttypes", "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles", "core", "inventory", "customers", "deals", "documents", "feedback", "finance"]
-MIDDLEWARE = ["django.middleware.security.SecurityMiddleware", "django.contrib.sessions.middleware.SessionMiddleware", "django.middleware.common.CommonMiddleware", "django.middleware.csrf.CsrfViewMiddleware", "django.contrib.auth.middleware.AuthenticationMiddleware", "django.contrib.messages.middleware.MessageMiddleware", "django.middleware.clickjacking.XFrameOptionsMiddleware"]
+MIDDLEWARE = ["core.private_response.PrivateErrorCacheMiddleware", "django.middleware.security.SecurityMiddleware", "django.contrib.sessions.middleware.SessionMiddleware", "django.middleware.common.CommonMiddleware", "django.middleware.csrf.CsrfViewMiddleware", "django.contrib.auth.middleware.AuthenticationMiddleware", "django.contrib.messages.middleware.MessageMiddleware", "django.middleware.clickjacking.XFrameOptionsMiddleware"]
 ROOT_URLCONF = "railet.urls"
 TEMPLATES = [{"BACKEND": "django.template.backends.django.DjangoTemplates", "DIRS": [BASE_DIR / "templates"], "APP_DIRS": True, "OPTIONS": {"context_processors": ["django.template.context_processors.request", "django.contrib.auth.context_processors.auth", "django.contrib.messages.context_processors.messages"]}}]
 WSGI_APPLICATION = "railet.wsgi.application"
@@ -49,3 +49,12 @@ X_FRAME_OPTIONS = "DENY"
 
 # Research-backed draft estimates only; live tax/contract production gates remain closed.
 FL_TAX_ESTIMATES_ENABLED = DEBUG
+
+# Internal work/cost rehearsal only; no AP, vendor payment or tax reporting.
+RECON_DEMO_ENABLED = DEBUG
+
+# Synthetic terminal review only; never legal finalization or loan origination.
+DEMO_COMPLETION_ENABLED = DEBUG
+
+# Manual invented customer notes and tasks only.
+CUSTOMER_ACTIVITY_DEMO_ENABLED = DEBUG

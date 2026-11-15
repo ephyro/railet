@@ -10,6 +10,7 @@ from django.views.decorators.http import require_http_methods, require_GET
 from core.access import context, member_view, require_editor
 from deals.models import DraftDeal
 from .models import DemoDealPacket
+from .form_registry import REGISTRY_VERSION, research_inventory
 from .packets import PacketChanged, check_gate, create_packet, digest, packet_source, source_digest
 
 SALT = 'railet.demo-packet.preview.v1'
@@ -18,6 +19,7 @@ SALT = 'railet.demo-packet.preview.v1'
 def private_packet(view):
     @wraps(view)
     def wrapped(request, *args, **kwargs):
+        request._railet_private_response = True
         try:
             check_gate()
             response = view(request, *args, **kwargs)
@@ -48,19 +50,22 @@ def packet_list(request, pk):
         else:
             if payload.get('actor') != request.user.pk or payload.get('dealer') != request.member.dealership_id or payload.get('deal') != deal.pk:
                 raise PermissionDenied
-            try:
-                key = uuid.UUID(payload['key'])
-                packet, _ = create_packet(dealership_id=request.member.dealership_id, deal_id=deal.pk, actor=request.user, creation_key=key, expected_source=payload['source'])
-            except PacketChanged as exception:
-                error, status = str(exception), 409
+            if payload.get('registry_version') != REGISTRY_VERSION:
+                error, status = 'The research inventory changed. Review the fresh preview before saving.', 409
             else:
-                return redirect('demo_packet_detail', pk=deal.pk, packet_pk=packet.pk)
+                try:
+                    key = uuid.UUID(payload['key'])
+                    packet, _ = create_packet(dealership_id=request.member.dealership_id, deal_id=deal.pk, actor=request.user, creation_key=key, expected_source=payload['source'])
+                except PacketChanged as exception:
+                    error, status = str(exception), 409
+                else:
+                    return redirect('demo_packet_detail', pk=deal.pk, packet_pk=packet.pk)
     snapshot = packet_source(dealership_id=request.member.dealership_id, deal_id=deal.pk)
-    token = signing.dumps({'actor':request.user.pk,'dealer':request.member.dealership_id,'deal':deal.pk,'key':str(uuid.uuid4()),'source':source_digest(snapshot)}, salt=SALT)
+    token = signing.dumps({'actor':request.user.pk,'dealer':request.member.dealership_id,'deal':deal.pk,'key':str(uuid.uuid4()),'source':source_digest(snapshot), 'registry_version': REGISTRY_VERSION}, salt=SALT)
     packets = deal.demo_packets.select_related('created_by')
     from django.core.paginator import Paginator
     page = Paginator(packets, 20).get_page(request.GET.get('page'))
-    return render(request, 'documents/demo_packet_list.html', context(request, deal=deal, snapshot=snapshot, token=token, page=page, packet_error=error), status=status)
+    return render(request, 'documents/demo_packet_list.html', context(request, deal=deal, snapshot=snapshot, token=token, page=page, packet_error=error, registry_version=REGISTRY_VERSION, references=research_inventory(snapshot)), status=status)
 
 
 @private_packet
@@ -69,6 +74,36 @@ def packet_list(request, pk):
 def packet_detail(request, pk, packet_pk):
     packet = get_object_or_404(DemoDealPacket.objects.select_related('created_by'), pk=packet_pk, deal_id=pk, deal__dealership_id=request.member.dealership_id)
     return render(request, 'documents/demo_packet_detail.html', context(request, packet=packet))
+
+
+@private_packet
+@member_view
+@require_GET
+def title_practice(request, pk, packet_pk):
+    packet = get_object_or_404(DemoDealPacket, pk=packet_pk, deal_id=pk, deal__dealership_id=request.member.dealership_id)
+    if source_digest(packet.snapshot) != packet.source_sha256:
+        return HttpResponse('Saved snapshot integrity check failed. Contact your administrator.', status=409, content_type='text/plain')
+    return render(request, 'documents/title_practice.html', context(request, packet=packet, snapshot=packet.snapshot))
+
+
+@private_packet
+@member_view
+@require_GET
+def paperwork_review(request, pk, packet_pk):
+    packet = get_object_or_404(DemoDealPacket, pk=packet_pk, deal_id=pk, deal__dealership_id=request.member.dealership_id)
+    if source_digest(packet.snapshot) != packet.source_sha256:
+        return HttpResponse('Saved snapshot integrity check failed. Contact your administrator.', status=409, content_type='text/plain')
+    return render(request, 'documents/paperwork_review.html', context(request, packet=packet, snapshot=packet.snapshot, registry_version=REGISTRY_VERSION, references=research_inventory(packet.snapshot)))
+
+
+@private_packet
+@member_view
+@require_GET
+def finance_practice(request, pk, packet_pk):
+    packet = get_object_or_404(DemoDealPacket, pk=packet_pk, deal_id=pk, deal__dealership_id=request.member.dealership_id)
+    if source_digest(packet.snapshot) != packet.source_sha256:
+        return HttpResponse('Saved snapshot integrity check failed. Contact your administrator.', status=409, content_type='text/plain')
+    return render(request, 'documents/finance_practice.html', context(request, packet=packet, snapshot=packet.snapshot))
 
 
 @private_packet

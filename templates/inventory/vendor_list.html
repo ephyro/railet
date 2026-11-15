@@ -1,0 +1,13 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}{% load assets %}
+{% block title %}Vendors{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset_url 'reconditioning.css' %}">{% endblock %}
+{% block content %}
+<a class="record-back" href="{% url 'recon_queue' %}">Reconditioning work</a>
+<section class="page-heading records-heading"><h1>Vendors</h1>{% if member.can_manage_inventory %}<a class="button" href="{% url 'vendor_create' %}">+ Add vendor</a>{% endif %}<p class="muted">Internal vendor directory and contact details for vehicle reconditioning. No vendor portal, accounts payable, or payment processing is enabled.</p></section>
+<section class="panel records-panel">
+<form method="get" class="actions" style="padding:16px"><label for="vendor-search">Search vendors</label><input id="vendor-search" type="search" name="q" value="{{ query }}" placeholder="Vendor, contact person, phone, email or address" maxlength="200"><button class="button">Search</button><a href="{% url 'vendor_list' %}">Reset</a></form>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Vendor directory"><table class="records-table"><thead><tr><th scope="col">Vendor</th><th scope="col">Contact person</th><th scope="col">Phone / email</th><th scope="col">Linked work / costs</th></tr></thead><tbody>
+{% for vendor in vendors %}<tr><td><a href="{% url 'vendor_detail' vendor.pk %}">{{ vendor.name }}</a>{% if vendor.address %}<small>{{ vendor.address }}</small>{% endif %}</td><td>{{ vendor.contact_name|default:'Not entered' }}</td><td>{% if vendor.phone or vendor.email %}{{ vendor.phone|default:'No phone' }}{% if vendor.email %}<small>{{ vendor.email }}</small>{% endif %}{% else %}Not entered{% endif %}</td><td>{{ vendor.task_count }} task{{ vendor.task_count|pluralize }} · {{ vendor.cost_count }} cost entr{{ vendor.cost_count|pluralize:'y,ies' }}</td></tr>{% empty %}<tr><td colspan="4">{% if query %}No vendors match “{{ query }}”.{% else %}No vendors recorded yet.{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% include 'shared/pagination.html' %}</section>
+{% endblock %}

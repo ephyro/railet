@@ -1,6 +1,6 @@
 # Finding BHPH demo accounts
 
-The BHPH account list now uses Railet's shared typed-filter and private saved-view system. It remains behind `DEMO_LEDGER_ENABLED`; this read-only feature does not introduce live servicing, balances due, delinquency decisions or payoff calculations.
+The BHPH account list uses Railet's shared typed-filter and private saved-view system behind `DEMO_LEDGER_ENABLED`. When `DEMO_SERVICING_ENABLED` is also set, eligible accounts can show **simulated** due amounts, statuses and next unpaid dates from an explicitly selected demo schedule. These are not live servicing, actual delinquency decisions or payoff calculations; receipts remain unapplied in the ledger. See [demo servicing](DEMO_SERVICING.md).
 
 ## Everyday workflow
 
@@ -8,7 +8,7 @@ Search for the customer's current name, phone or email, the account label, or th
 
 The list identifies the customer, account number and saved vehicle before opening the account. Quick scopes distinguish all accounts, accounts linked to a draft and accounts needing context. Changing scope preserves the search and advanced rules; filters are not silently discarded. A no-match state offers a reset rather than suggesting another customer's account.
 
-Advanced rules support linked/unlinked context, customer names, recorded stock/VIN, proposed interest method and frequency as linked, and opening date. Sort by newest account, customer or opening date. Rules are allowlisted and typed; invalid rules hide results with actionable errors. No arbitrary ORM lookup, dealership selector or financial aggregation is exposed.
+Advanced rules support linked/unlinked context, customer names, recorded stock/VIN, proposed interest method and frequency as linked, and opening date. Sort by newest account, customer or opening date. With demo servicing enabled, status scopes and oldest-overdue ordering are also available; those worklist searches are bounded to 500 matching accounts and fail closed when too broad. The list also displays the latest recorded receipt and whether it was corrected. Rules are allowlisted and typed; invalid rules hide results with actionable errors. No arbitrary ORM lookup or dealership selector is exposed.
 
 ## Module and security boundaries
 

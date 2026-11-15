@@ -15,8 +15,9 @@ from deals.review import build_review_reminders, money_text
 from deals.worksheet import draft_totals
 from inventory.models import Vehicle
 from .models import DemoDealPacket
+from .form_registry import REGISTRY_VERSION, research_inventory
 
-TEMPLATE_VERSION = 'demo-summary-v5'
+TEMPLATE_VERSION = 'demo-summary-v6'
 
 
 class PacketChanged(Exception):
@@ -118,13 +119,13 @@ def packet_source(*, dealership_id, deal_id):
 def create_packet(*, dealership_id, deal_id, actor, creation_key, expected_source):
     check_gate()
     with transaction.atomic():
+        Dealership.objects.select_for_update().get(pk=dealership_id)
         try:
             membership = Membership.objects.select_for_update().get(user=actor, dealership_id=dealership_id)
         except Membership.DoesNotExist as error:
             raise PermissionDenied from error
         if membership.role not in (Membership.Role.OWNER, Membership.Role.STAFF):
             raise PermissionDenied
-        Dealership.objects.select_for_update().get(pk=dealership_id)
         prior = DemoDealPacket.objects.filter(deal_id=deal_id, deal__dealership_id=dealership_id, creation_key=creation_key).first()
         if prior:
             if prior.source_sha256 != expected_source or prior.created_by_id != actor.pk:
@@ -137,7 +138,10 @@ def create_packet(*, dealership_id, deal_id, actor, creation_key, expected_sourc
         if source_digest(snapshot) != expected_source:
             raise PacketChanged('The saved deal or a linked record changed after preview. Review a fresh preview before saving.')
         now = timezone.now()
-        html = render_to_string('documents/demo_packet_artifact.html', {'snapshot': snapshot, 'captured_at': now, 'template_version': TEMPLATE_VERSION})
+        html = render_to_string('documents/demo_packet_artifact.html', {
+            'snapshot': snapshot, 'captured_at': now, 'template_version': TEMPLATE_VERSION,
+            'registry_version': REGISTRY_VERSION, 'references': research_inventory(snapshot),
+        })
         return DemoDealPacket.objects.create(
             deal_id=deal_id, created_by=actor, created_at=now, creation_key=creation_key,
             template_version=TEMPLATE_VERSION, snapshot=snapshot, source_sha256=expected_source,

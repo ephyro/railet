@@ -4,11 +4,14 @@ import hashlib
 import uuid
 
 from django.core.files.base import ContentFile
+from django.conf import settings
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
 from deals.models import DraftDeal
+from core.models import Dealership, Membership
 
 from .models import DealFile, DealFileEvent
 
@@ -56,6 +59,23 @@ def _locked_scoped_deal(*, deal_id, dealership_id):
     )
 
 
+def _lock_dealership(dealership_id):
+    """Serialize document mutations with dealership-first workflows."""
+    if not Dealership.objects.select_for_update().filter(pk=dealership_id).exists():
+        raise PermissionDenied
+
+
+def _require_locked_editor(actor, dealership_id):
+    """Lock and recheck the actor after the dealership and parent locks."""
+    if not getattr(actor, 'is_authenticated', False) or not getattr(actor, 'pk', None):
+        raise PermissionDenied
+    if not Membership.objects.select_for_update().filter(
+        user_id=actor.pk, user__is_active=True, dealership_id=dealership_id,
+        role__in=[Membership.Role.OWNER, Membership.Role.STAFF],
+    ).exists():
+        raise PermissionDenied
+
+
 def _delete_new_blobs(storage, names):
     errors = []
     for name in reversed(names):
@@ -71,6 +91,8 @@ def _delete_new_blobs(storage, names):
 
 def upload_deal_file(*, deal_id, dealership_id, actor, title, upload_key, pdf_bytes):
     """Store one immutable PDF and upload event, with cleanup around DB commit."""
+    if not getattr(settings, 'DEAL_FILES_DEMO_ENABLED', False):
+        raise PermissionDenied
     byte_size = validate_pdf_bytes(pdf_bytes)
     if not title or len(title) > MAX_TITLE_LENGTH:
         raise FileWorkflowError("Enter a file title of 120 characters or fewer.")
@@ -83,7 +105,9 @@ def upload_deal_file(*, deal_id, dealership_id, actor, title, upload_key, pdf_by
     try:
         # durable=True rejects an outer transaction so cleanup also covers commit failure.
         with transaction.atomic(durable=True):
+            _lock_dealership(dealership_id)
             deal = _locked_scoped_deal(deal_id=deal_id, dealership_id=dealership_id)
+            _require_locked_editor(actor, dealership_id)
             existing = DealFile.objects.select_for_update().filter(
                 deal=deal,
                 upload_key=upload_key,
@@ -141,6 +165,8 @@ def change_deal_file_state(
     *, deal_id, dealership_id, file_id, actor, action, reason=""
 ):
     """Archive or restore a file and append an event while holding its deal lock."""
+    if not getattr(settings, 'DEAL_FILES_DEMO_ENABLED', False):
+        raise PermissionDenied
     if action not in (DealFileEvent.Action.ARCHIVE, DealFileEvent.Action.RESTORE):
         raise FileWorkflowError("Choose Archive or Restore for this file.")
     reason = (reason or "").strip()
@@ -150,7 +176,9 @@ def change_deal_file_state(
         raise FileWorkflowError("Enter a reason to archive this file.")
 
     with transaction.atomic():
+        _lock_dealership(dealership_id)
         deal = _locked_scoped_deal(deal_id=deal_id, dealership_id=dealership_id)
+        _require_locked_editor(actor, dealership_id)
         deal_file = DealFile.objects.select_for_update().get(pk=file_id, deal=deal)
         is_archived = deal_file.archived_at is not None
         if action == DealFileEvent.Action.ARCHIVE:

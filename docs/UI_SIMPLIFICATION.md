@@ -2,7 +2,15 @@
 
 Owner feedback: the marketing workflow sample is the desired visual direction. The previous interface confused a family member who tried it; that is useful usability feedback, not a formal staff validation. Prioritize recognizable tasks and reduce visible choices before adding more features.
 
-## Design plan
+This file is a chronological design and developer-verification log from October
+2026, not a current screen specification. Earlier plans and results below were
+superseded by later entries. In the current synthetic interface Home links to
+Vehicles, Customers, Deals and gated BHPH sections; the deal list includes
+completed rehearsals, and the BHPH worklist can show labeled demo-servicing
+simulations and direct payment actions. These do not establish live loan status,
+staff validation or production readiness.
+
+## Initial design plan (historical)
 
 Palette: green #204c41, ink #20352d, white #ffffff, paper #f5f7f5, divider #dee6e1, yellow #f2d56a used sparingly in the independently written letter mark. Typography: self-hosted Manrope (SIL OFL 1.1), 16 px body, 14–15 px secondary text, clear 32 px page titles. Keep information left aligned and controls comfortably sized.
 
@@ -18,7 +26,7 @@ Layout:
 
 Home centers four usable tasks: start a deal, add a vehicle, add a customer, record a payment. Read-only users receive browse actions instead. Existing follow-ups remain secondary. Lists begin with search; advanced filter editing and saved searches are disclosed only when requested. Deals keep an explicit Draft status on the record while the module is called Deals. Secondary deal tools move behind More; Save and Review remain visible.
 
-## Review against the request
+## Initial review against the request (historical)
 
 Do not turn the sample into a decorative dashboard or copy the proprietary website's mockup markup/assets. Preserve actual records and working actions, with independently written templates/CSS. The sample's useful qualities are the quiet top navigation, readable hierarchy and task focus. Avoid another left sidebar plus many toolbars. Do not add statistics, unavailable modules, promotional prompts or artificial progress.
 
@@ -26,7 +34,7 @@ Financial posting previews, correction consequences, legal/production gates, unk
 
 Verification must include owner/staff/viewer navigation, keyboard/disclosure behavior, existing form submissions and error preservation, desktop/mobile layouts, and actual synthetic task flows. Browser checks are developer evidence; the owner's subsequent feedback determines whether the new layout is easier to use.
 
-## Implemented behavior and verification
+## Initial implementation and verification (historical)
 
 The shared shell now uses top tabs, the new font and a single visible test-workspace indicator. Home has four real task links. The Deals list has in-progress/archived/all tabs that retain search rules. Optional creation details, fee breakdowns, financing terms, secondary deal tools, follow-ups and saved searches use progressive disclosure. Applied filters and validation errors remain visible; field errors automatically reveal their affected details. Choosing a financing type explicitly opens its terms for entry. Payments now begins with customer accounts and direct Record payment links; standalone account setup and the register remain under More account tools. Consequential posting previews and server authorization remain in place.
 

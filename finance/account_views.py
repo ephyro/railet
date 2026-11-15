@@ -1,28 +1,35 @@
 # SPDX-License-Identifier: MPL-2.0
 from django import forms
 from django.core import signing
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.conf import settings
 from django.db import transaction
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.paginator import Paginator
 from django.views.decorators.http import require_GET, require_http_methods
 from core.access import member_view, context, require_editor
-from deals.account_context import eligible_account_drafts, account_draft_snapshot
+from deals.account_context import eligible_account_drafts, account_draft_snapshot, completed_account_snapshot
+from deals.models import DraftDeal
 from .models import DemoAccountContext
 from .views import demo_page, scoped_book, money
 from .services import reconcile, LedgerError
 from .schedule_services import result_digest
-from .account_services import link_draft
+from .account_services import link_draft, link_completed
 
 SALT = 'railet.synthetic-account-link.v1'
 
 
 class LinkForm(forms.Form):
-    deal = forms.ModelChoiceField(queryset=None, label='BHPH draft for this customer', empty_label='Choose a draft')
+    deal = forms.ModelChoiceField(queryset=None, label='BHPH deal for this customer', empty_label='Choose a deal')
 
     def __init__(self, *args, book, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['deal'].queryset = eligible_account_drafts(dealership_id=book.dealership_id, customer_id=book.customer_id)
+        if getattr(settings, 'DEMO_COMPLETION_ENABLED', False) and getattr(settings, 'DEMO_PACKETS_ENABLED', False):
+            self.fields['deal'].queryset = DraftDeal.objects.filter(dealership_id=book.dealership_id,
+                buyer_id=book.customer_id, buyer__dealership_id=book.dealership_id,
+                vehicle__dealership_id=book.dealership_id, deal_type='bhph', archived_at__isnull=True).exclude(demo_completion__void_rehearsal__isnull=False)
+        self.fields['deal'].label_from_instance = lambda deal: f'Deal #{deal.pk}' + (' · Completed rehearsal' if hasattr(deal, 'demo_completion') else ' · Draft')
 
 
 @demo_page
@@ -68,15 +75,22 @@ def link(request, pk):
             if payload['actor'] != request.user.pk or payload['dealer'] != request.member.dealership_id or payload['book'] != book.pk:
                 raise PermissionDenied
             try:
-                link_draft(dealership_id=book.dealership_id, book_id=book.pk, deal_id=payload['deal'], actor=request.user, expected_digest=payload['digest'])
+                operation = link_completed if payload.get('source') == 'completed' else link_draft
+                operation(dealership_id=book.dealership_id, book_id=book.pk, deal_id=payload['deal'], actor=request.user, expected_digest=payload['digest'])
             except LedgerError as error:
                 form.add_error(None, error.messages)
                 return render(request, 'finance/account_link.html', context(request, book=book, form=form), status=409)
             return redirect('bhph_account', pk=book.pk)
     elif request.method == 'POST' and form.is_valid():
-        snapshot = account_draft_snapshot(form.cleaned_data['deal'])
+        deal = form.cleaned_data['deal']
+        completed = hasattr(deal, 'demo_completion')
+        try:
+            snapshot = completed_account_snapshot(deal) if completed else account_draft_snapshot(deal)
+        except (ValidationError, KeyError, TypeError, AttributeError):
+            form.add_error(None, 'The completed rehearsal could not be verified.')
+            return render(request, 'finance/account_link.html', context(request, book=book, form=form), status=409)
         token = signing.dumps({'actor': request.user.pk, 'dealer': book.dealership_id, 'book': book.pk,
-                               'deal': form.cleaned_data['deal'].pk, 'digest': result_digest(snapshot)}, salt=SALT)
+                               'deal': deal.pk, 'digest': result_digest(snapshot), 'source': 'completed' if completed else 'draft'}, salt=SALT)
         return render(request, 'finance/account_link.html', context(request, book=book, form=form, snapshot=snapshot, token=token))
     return render(request, 'finance/account_link.html', context(request, book=book, form=form))
 

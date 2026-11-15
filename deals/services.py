@@ -7,6 +7,9 @@ from django.core.exceptions import ValidationError
 
 @transaction.atomic
 def persist_draft(deal, *, actor, proposals=(), action="draft_saved", reason=""):
+    if deal.pk:
+        from .completion import assert_open
+        assert_open(deal)
     # The database arbitrates concurrent creation keys. Other validation runs here.
     if deal.pk and action not in ("draft_archived", "draft_restored"):
         from .models import DraftDeal

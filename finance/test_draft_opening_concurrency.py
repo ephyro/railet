@@ -50,3 +50,38 @@ class DraftAccountConcurrencyTests(TransactionTestCase):
         self.assertEqual(results.count('duplicate'),1)
         self.assertEqual(DemoAccountContext.objects.count(),1)
         self.assertEqual(DemoBook.objects.count(),2)
+
+    def test_role_revocation_while_waiting_blocks_open_and_link(self):
+        from threading import Event
+        from django.core.exceptions import PermissionDenied
+        from django.db import transaction
+        from core.models import Dealership, Membership
+        from .account_services import link_draft
+        actor=self.users['staff']
+        operations=[
+            lambda: open_from_draft(dealership_id=self.dealer.pk,deal_id=self.deal.pk,actor=actor,
+                opening_amount='1200.25',opening_on=date(2026,1,1),source_reference='Synthetic opening',
+                request_key=uuid4(),expected_digest=self.fingerprint),
+            lambda: link_draft(dealership_id=self.dealer.pk,book_id=self.book.pk,deal_id=self.deal.pk,
+                actor=actor,expected_digest=self.fingerprint),
+        ]
+        for operation in operations:
+            Membership.objects.filter(user=actor).update(role='staff')
+            started=Event()
+            def invoke():
+                close_old_connections()
+                try:
+                    started.set()
+                    try: operation()
+                    except PermissionDenied: return 'denied'
+                    return 'allowed'
+                finally: close_old_connections()
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                with transaction.atomic():
+                    Dealership.objects.select_for_update().get(pk=self.dealer.pk)
+                    future=pool.submit(invoke)
+                    self.assertTrue(started.wait(10))
+                    Membership.objects.filter(user=actor).update(role='viewer')
+                self.assertEqual(future.result(timeout=15),'denied')
+            self.assertFalse(DemoAccountContext.objects.exists())
+            self.assertEqual(DemoBook.objects.count(),1)

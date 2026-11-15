@@ -65,7 +65,8 @@ legal amount financed, payoff or a contract schedule. Other payment frequencies
 remain valid proposal metadata but do not receive an invented monthly amount.
 Terms remain editable draft metadata; no ledger book or payment is created.
 
-New deal events use schema 6; new synthetic packets use schema 5/template v5 and
+New ordinary deal events use schema 6; new synthetic packets use schema 5/template
+`demo-summary-v6` (template v5 was used for an earlier iteration) and
 retain tax provenance and the proposed finance charge. Old artifacts remain in
 their original versions. Automatic estimates and the live preview endpoint remain
 DEBUG-gated via FL_TAX_ESTIMATES_ENABLED. The estimator returns private/no-store
@@ -81,7 +82,7 @@ identified from the vehicle's draft tax base; the feature does not decide tax
 classification of a real credit contract or other taxable products. Professional
 approval is still required before any real sale/receipt/document uses this profile.
 
-Current verification includes literal $10,000 Miami-Dade -> $650 and $4,000 ->
+Historical developer verification from October 2026 included literal $10,000 Miami-Dade -> $650 and $4,000 ->
 $280 references, 2026 Palm Beach/Martin -> $625 at $10,000, confirmed $2,000 trade
 and $299 dealer fee -> $547.94, low-value aggregate cent rounding, unknown/year/
 exclusion rejection, manual history preservation, atomic rollback, stock/VIN
@@ -106,5 +107,5 @@ metadata after the last guard refinement. Exact results are in the ignored revie
 folder. Staff usability and professional legal/tax approval remain outstanding.
 Final focused verification after the saved-metadata guard and UI expectation
 refinements: **21 SQLite tests passed in 5.530s**, no skips. Migration consistency
-reports no changes. The development preview is running through the existing
-localhost-only persistent tmux session.
+reported no changes. The localhost-only preview mentioned in the original review
+was temporary; this record does not assert a server is currently running.

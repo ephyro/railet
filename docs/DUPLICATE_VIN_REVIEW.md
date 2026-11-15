@@ -30,6 +30,13 @@ locks. No schema, license, finance calculations or production gates change.
 
 ## Limits and remaining pilot gates
 
+The separate development-only duplicate VIN report lists matching same-dealership
+records, including sold stock, with 25 vehicle rows per page. Groups can span
+pages; the report does not merge records or verify reacquisition. Database
+upper/trim matching is not a universal VIN canonicalizer. Trade intake still uses
+its narrower case-insensitive exact stored comparison, which does not trim legacy
+stored whitespace. See [trade-ins](TRADE_INS.md).
+
 This addresses the ordinary-entry gap noted in DEVELOPMENT_REVIEW_2026-10-24.md;
 that report describes the earlier observed behavior and remains unchanged as
 historical evidence. There is no universal VIN unique constraint, bulk repair,
@@ -40,7 +47,7 @@ duplicates still need human reconciliation before a live inventory pilot. A
 reviewed separate stock record is not a determination of title ownership,
 accounting treatment or document compliance. All existing production gates stand.
 
-## Verification and delegated work
+## Historical verification and delegated work (October 2026)
 
 Luna implemented the bounded form, view, template, matcher and tests. The local
 model provided a narrow design review identifying concurrent creates, changed

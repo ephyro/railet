@@ -61,3 +61,64 @@ class LedgerConcurrencyTests(TransactionTestCase):
         results=self.race([post,post])
         self.assertEqual(results[0][0],results[1][0]);self.assertEqual(sum(created for _,created in results),1)
         self.assertEqual(DemoBook.objects.filter(creation_key=key).count(),1)
+
+    def test_role_change_waits_for_each_posting_transaction(self):
+        from threading import Event
+        from unittest.mock import patch
+        from django.db import transaction
+        original, _ = record_receipt(dealership_id=self.dealer.pk, book_id=self.book.pk,
+            actor=self.user, amount='5.00', effective_on=self.today, reason='Synthetic original', request_key=uuid4())
+        operations = [
+            lambda: open_book(dealership_id=self.dealer.pk, customer_id=self.customer.pk, actor=self.user,
+                label='Synthetic new book', source_reference='Synthetic source', opening_on=self.today,
+                opening_amount='10.00', request_key=uuid4()),
+            lambda: record_receipt(dealership_id=self.dealer.pk, book_id=self.book.pk, actor=self.user,
+                amount='3.00', effective_on=self.today, reason='Synthetic receipt', request_key=uuid4()),
+            lambda: reverse_receipt(dealership_id=self.dealer.pk, book_id=self.book.pk, posting_id=original.pk,
+                actor=self.user, effective_on=self.today, reason='Synthetic reversal', request_key=uuid4()),
+        ]
+        for operation in operations:
+            Membership.objects.filter(user=self.user).update(role='owner')
+            entered, release, attempted, revoked = Event(), Event(), Event(), Event()
+            original_create = DemoPosting.objects.create
+            def pause(*args, **kwargs):
+                entered.set()
+                if not release.wait(15): raise TimeoutError('Posting not released')
+                return original_create(*args, **kwargs)
+            def post():
+                close_old_connections()
+                try: return operation()
+                finally: close_old_connections()
+            def revoke():
+                close_old_connections()
+                try:
+                    if not entered.wait(15): raise TimeoutError('Posting not entered')
+                    attempted.set()
+                    with transaction.atomic():
+                        Membership.objects.filter(user=self.user).update(role='viewer')
+                    revoked.set()
+                finally: close_old_connections()
+            with patch.object(DemoPosting.objects, 'create', side_effect=pause):
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    saved=pool.submit(post); changed=pool.submit(revoke)
+                    try:
+                        self.assertTrue(attempted.wait(15))
+                        self.assertFalse(revoked.wait(0.5))
+                    finally: release.set()
+                    saved.result(timeout=15); changed.result(timeout=15)
+            self.assertTrue(revoked.is_set())
+        self.assertTrue(reconcile(dealership_id=self.dealer.pk,book_id=self.book.pk)['balanced'])
+
+    def test_inactive_and_foreign_membership_cannot_post(self):
+        from django.core.exceptions import PermissionDenied
+        self.user.is_active=False; self.user.save(update_fields=['is_active'])
+        with self.assertRaises(PermissionDenied):
+            record_receipt(dealership_id=self.dealer.pk,book_id=self.book.pk,actor=self.user,
+                amount='1.00',effective_on=self.today,reason='Synthetic',request_key=uuid4())
+        self.user.is_active=True; self.user.save(update_fields=['is_active'])
+        foreign=Dealership.objects.create(name='Synthetic other dealer')
+        Membership.objects.filter(user=self.user).update(dealership=foreign)
+        with self.assertRaises(PermissionDenied):
+            record_receipt(dealership_id=self.dealer.pk,book_id=self.book.pk,actor=self.user,
+                amount='1.00',effective_on=self.today,reason='Synthetic',request_key=uuid4())
+        self.assertEqual(self.book.postings.count(),1)

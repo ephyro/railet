@@ -5,18 +5,22 @@
 {% block content %}
 <section class="page-heading records-heading">
   <h1>Customers</h1>
+  {% if package_export_enabled and member.role == "owner" %}<a href="{% url 'dealership_export_review' %}">Export dealership data</a>{% endif %}
+  {% if customer_export_enabled and member.role == "owner" %}<a href="{% url 'customer_export_review' %}">Export customer data</a>{% endif %}
+  {% if customer_activity_enabled %}<a href="{% url 'customer_activity_queue' %}">Follow-ups and appointments</a>{% endif %}
   {% if member.can_manage_inventory %}<a class="button" href="{% url 'customer_create' %}">+ Add customer</a>{% endif %}
+  <nav class="deal-scopes records-scopes" aria-label="Sales lead stage">{% for tab in stage_tabs %}<a href="?{{ tab.query }}" {% if tab.active %}aria-current="page"{% endif %}>{{ tab.label }}</a>{% endfor %}</nav>
 </section>
 <section class="panel records-panel">
   {% include 'shared/filter_builder.html' with compact=True %}
   <div class="table-wrap" tabindex="0" role="region" aria-label="Customer results">
     <table class="records-table">
-      <thead><tr><th scope="col">Name</th><th scope="col">Phone</th><th scope="col">Email</th></tr></thead>
+      <thead><tr><th scope="col">Name</th><th scope="col">Lead stage</th><th scope="col">Phone</th><th scope="col">Email</th></tr></thead>
       <tbody>
         {% for customer in customers %}
-        <tr><td><a href="{% url 'customer_detail' customer.pk %}">{{ customer }}</a></td><td>{{ customer.phone|default:'Not provided' }}</td><td>{{ customer.email|default:'Not provided' }}</td></tr>
+        <tr><td><a href="{% url 'customer_detail' customer.pk %}">{{ customer }}</a></td><td>{% if customer.lead_stage %}<span class="badge">{{ customer.get_lead_stage_display }}</span>{% else %}<span class="muted">Not set</span>{% endif %}</td><td>{{ customer.phone|default:'Not provided' }}</td><td>{{ customer.email|default:'Not provided' }}</td></tr>
         {% empty %}
-        <tr><td colspan="3">{% if query %}No customers match “{{ query }}”. Try a different name, phone or email.{% else %}No customers yet.{% if member.can_manage_inventory %} <a href="{% url 'customer_create' %}">Add a customer</a>.{% endif %}{% endif %}</td></tr>
+        <tr><td colspan="4">{% if query or stage or filter_state.rows %}No customers match this view. Try a different name, phone, email or stage filter.{% else %}No customers yet.{% if member.can_manage_inventory %} <a href="{% url 'customer_create' %}">Add a customer</a>.{% endif %}{% endif %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
