@@ -36,7 +36,7 @@ live e-signing or email is enabled by this prototype.
 
 ## November 2026 local mock-transport rehearsal
 
-No isolated DocuSeal server is running in the local environment. `documents/signing/docuseal.py`
+The offline Railet adapter lives in `documents/signing/docuseal.py`. It
 includes pre-connection and payload checks plus an in-memory `LocalMockDocuSealTransport`
 that explicitly marks its results `mock_only=True`:
 
@@ -61,9 +61,51 @@ that explicitly marks its results `mock_only=True`:
 - `verify_test_pdf_artifact` checks bounded `%PDF-` bytes against an expected
   SHA-256 digest.
 
-These checks exercise the local mock contract in memory (`documents.test_docuseal_rehearsal`);
-a live isolated DocuSeal container/server, verified provider webhook authentication,
-durable replay storage, and end-to-end signing flow remain unconfigured.
+These checks exercise the local mock contract in memory
+(`documents.test_docuseal_rehearsal`). The separate provider rehearsal below
+uses a disposable sandbox and leaves the Railet adapter offline.
+
+## November 18, 2026 webhook documentation check
+
+The provider documents configurable secret headers and an HMAC-SHA256
+signature over the timestamp and raw request body. The mock header name is
+local to Railet. Verify which mechanisms the pinned self-hosted edition
+actually supports before implementing a receiver.
+[DocuSeal webhook guide](https://www.docuseal.com/resources/use-webhooks)
+
+The API reference describes automatic retries for production accounts
+and distinguishes an individual signer's completion from completion of
+the entire submission. Verify retries, stable delivery identifiers and
+submission idempotency in the isolated instance. Reconcile status and
+artifact integrity separately from webhook delivery.
+[DocuSeal API reference](https://www.docuseal.com/docs/api)
+
+## November 18, 2026 isolated signing rehearsal
+
+The official Linux/amd64 DocuSeal 3.3.7 image identified by digest
+`sha256:d5f4d0c5bed4ffe727fefc6b25817e78e408b6d55bc4a4c80af136214418b481`
+started in a fresh Bubblewrap sandbox. The health endpoint on
+`127.0.0.1:3000` returned HTTP 200. The sandbox had only loopback and no
+external IPv4 or IPv6 routes. It used disposable storage and no host
+sockets or Railet data. The process was stopped after the check.
+
+Two fresh runs uploaded an invented template, submitted it to an
+`@example.invalid` signer with email and SMS disabled, and signed it through
+the provider's local form. Both runs reported completed signer and submission
+status with no recorded send. Each run returned the same 35,865-byte signed
+PDF on two downloads. The result contained a signature byte range and
+differed from the source PDF.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| Source PDF | `5431eab2775c2081eb89ce81c7d9cc499a314658b6e625550ec00ebd855d6a13` |
+| First run signed PDF | `eca74d242e5544397702dceb1dc337d2ab3c7a00a55d85d5c0492a3223abcd69` |
+| Independent run signed PDF | `f80d29c928666bc93e016cebfa48c7c4344aec2f1678516b4d53d74ff17f0569` |
+
+Network isolation was rechecked after signing and the temporary databases
+were removed. The run checked PDF structure and download integrity. A
+certificate trust check, provider callback delivery, durable replay protection
+and retention policy remain separate verification work.
 
 ## November 9, 2026 availability check and fixture
 

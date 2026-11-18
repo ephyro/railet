@@ -12,7 +12,8 @@ validation. On November 9, an isolated PostgreSQL suite passed 638 tests with
 2 skips; a later full SQLite run covered 668 tests with 45 skips after the audit
 guard migration. On November 14, the full isolated PostgreSQL suite covered
 684 tests with 2 skips; the latest full runs covered 779 tests with 78 skips on
-SQLite and 777 tests with 4 skips on PostgreSQL. These
+local SQLite. GitHub Actions ran 779 tests on both backends, with 79 skips
+on SQLite and 5 on PostgreSQL. These
 developer checks do not establish production readiness.
 
 ## Where we are
@@ -116,13 +117,14 @@ professional review.
   [Florida document research](FLORIDA_DOCUMENT_RESEARCH.md).)
 - [ ] Build approved document packs, applicability checks, previews, immutable
   generated versions and signed-artifact retention/export.
-- [ ] Connect DocuSeal in an isolated test environment using a synthetic template
-  and PDF. An in-memory mock exercises an invented test contract; no provider
-  connection, signing UI, verified webhook, signed-document retrieval or
-  provider end-to-end test exists. See [DocuSeal rehearsal](DOCUSEAL_REHEARSAL.md).
-  A parseable, visibly marked synthetic PDF fixture and stricter offline request
-  allowlist are prepared; the November 9 local check could not access Docker's
-  socket, so actual provider version and egress/notification controls remain open.
+- [x] Exercise DocuSeal in an isolated test environment using a synthetic
+  template and PDF. Two disposable DocuSeal 3.3.7 runs completed a signature
+  and verified repeated signed PDF downloads. The sandbox had no external
+  routes, and the request disabled email and SMS. The Railet adapter remains
+  offline. Webhook and integration checks are tracked separately below.
+  See [DocuSeal rehearsal](DOCUSEAL_REHEARSAL.md).
+- [ ] Connect the Railet test adapter to the isolated provider and verify
+  notification suppression and signed-artifact retrieval through that adapter.
 - [ ] Verify provider version, notification suppression, authentication, webhook
   authenticity/replay handling, retries, artifact integrity and duplicate request
   handling. Review DocuSeal AGPL and attribution obligations for the chosen setup.
