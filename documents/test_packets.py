@@ -211,6 +211,36 @@ class DemoPacketTests(TestCase):
         self.assertContains(artifact,'456 Other Synthetic Lane')
         self.assertNotContains(artifact,'Changed later')
 
+    def test_bhph_packet_keeps_rebuilt_sale_and_unverified_trade_separate_after_edits(self):
+        self.vehicle.title_brand = Vehicle.Brand.REBUILT
+        self.vehicle.save()
+        self.deal.deal_type = 'bhph'
+        self.deal.co_buyer = Customer.objects.create(
+            dealership=self.dealer, first_name='Casey', last_name='Demo')
+        self.deal.save()
+        trade = DraftTradeIn.objects.create(deal=self.deal, year=2018, make='Synthetic', model='Wagon')
+        self.assertEqual(self.save().status_code, 302)
+        packet = DemoDealPacket.objects.get()
+        original = packet.html.encode()
+
+        self.vehicle.title_brand = Vehicle.Brand.UNKNOWN
+        self.vehicle.save()
+        trade.title_brand = Vehicle.Brand.REBUILT
+        trade.save()
+        self.deal.deal_type = 'cash'
+        self.deal.co_buyer = None
+        self.deal.save()
+
+        packet.refresh_from_db()
+        snapshot = packet.snapshot
+        self.assertEqual(snapshot['deal_type'], 'Buy here, pay here')
+        self.assertEqual(snapshot['co_buyer']['name'], 'Casey Demo')
+        self.assertEqual(snapshot['vehicle']['facts']['Title brand as recorded'], 'Rebuilt')
+        self.assertEqual(snapshot['trade']['record_id'], trade.pk)
+        self.assertEqual(snapshot['trade']['facts']['Title brand as recorded'], 'Not verified')
+        artifact = self.client.get(reverse('demo_packet_artifact', args=[self.deal.pk, packet.pk]))
+        self.assertEqual(artifact.content, original)
+
     def test_address_edit_after_preview_requires_a_new_packet_preview(self):
         token=self.token();self.buyer.city='Changed address fact';self.buyer.save()
         self.assertEqual(self.save(token).status_code,409)
@@ -325,17 +355,23 @@ class DemoPacketTests(TestCase):
         self.assertFalse(DemoDealPacket.objects.exists())
 
     def test_registry_update_preserves_old_packet_and_export_bytes(self):
+        self.check_title_registry_update('fl-research-2026-11-07-v2', '07/23 on referenced form; verify current')
+
+    def test_v7_requires_fresh_preview_and_preserves_v6_artifact(self):
+        self.check_title_registry_update('fl-research-2026-11-10-v6',
+            'Indexed FLHSMV form marked Rev. 07/23; direct PDF unavailable at review, so current revision remains unconfirmed.')
+
+    def check_title_registry_update(self, old_version, old_revision):
         from dataclasses import replace
         from io import BytesIO
         from zipfile import ZipFile
         from .form_registry import REGISTRY_VERSION, research_inventory
 
-        old_version = 'fl-research-2026-11-07-v2'
         def old_inventory(snapshot):
             entries = research_inventory(snapshot)
             for entry in entries:
                 if entry['reference'].key == 'title':
-                    entry['reference'] = replace(entry['reference'], revision='07/23 on referenced form; verify current')
+                    entry['reference'] = replace(entry['reference'], revision=old_revision)
             return entries
 
         with patch('documents.packet_views.REGISTRY_VERSION', old_version), \
@@ -347,12 +383,12 @@ class DemoPacketTests(TestCase):
         old_packet = DemoDealPacket.objects.get()
         old_html = old_packet.html.encode('utf-8')
         self.assertIn(old_version.encode(), old_html)
-        self.assertIn(b'07/23 on referenced form; verify current', old_html)
+        self.assertIn(old_revision.encode(), old_html)
         self.assertEqual(self.save(stale_token).status_code, 409)
         self.assertEqual(self.save().status_code, 302)
         new_packet = DemoDealPacket.objects.exclude(pk=old_packet.pk).get()
         self.assertIn(REGISTRY_VERSION, new_packet.html)
-        self.assertIn('direct PDF unavailable at review', new_packet.html)
+        self.assertIn('HSMV 82040 MV rev. 07/23', new_packet.html)
         old_packet.refresh_from_db()
         self.assertEqual(old_packet.html.encode('utf-8'), old_html)
         artifact = self.client.get(reverse('demo_packet_artifact', args=[self.deal.pk, old_packet.pk]))
@@ -427,7 +463,7 @@ class DemoPacketTests(TestCase):
         self.assertEqual(self.save().status_code, 302)
         new = DemoDealPacket.objects.exclude(pk=old.pk).get()
         self.assertIn(REGISTRY_VERSION, new.html)
-        self.assertIn('direct PDF blocked', new.html)
+        self.assertIn('Secure HSMV 82995 form revision remains unverified', new.html)
         old.refresh_from_db()
         self.assertEqual((old.html.encode(), old.snapshot), (old_html, old_snapshot))
         artifact = self.client.get(reverse('demo_packet_artifact', args=[self.deal.pk, old.pk]))

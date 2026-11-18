@@ -85,7 +85,11 @@ professional review.
   timing research in catalog v6; transaction applicability, effective dates,
   financial calculations, forms and counsel review remain open. No live credit
   disclosures are enabled. See [Florida document research](FLORIDA_DOCUMENT_RESEARCH.md).
-- [ ] Verify the current HSMV 82040 MV PDF, applicable procedures and reuse/filing acceptance directly with FLHSMV; the 2026-11-07 research was limited to indexed official text because direct PDF access returned 403. No title-form generation or filing is enabled.
+- [ ] Verify applicable HSMV 82040 MV procedures and reuse/filing acceptance
+  with FLHSMV. The official application PDF (rev. 07/23) and INFO 23-023
+  were retrieved directly and checked on November 18, 2026. Their hashes
+  are recorded in [Florida document research](FLORIDA_DOCUMENT_RESEARCH.md).
+  Title-form generation and filing remain disabled.
 - [ ] Inventory each distinct needed document for ordinary Florida cash and BHPH
   transactions and special cases; record owner, form source, current revision,
   permitted use, applicability, required facts, delivery and retention. Get counsel
@@ -95,13 +99,20 @@ professional review.
   storage only after document-specific requirements and permissions are verified.
 - [ ] Test rebuilt, unknown-brand, co-buyer, trade-in and cash/BHPH combinations
   against independently reviewed cases, including changes after finalization.
+  A synthetic BHPH test verifies that a saved packet retains the rebuilt
+  vehicle, co-buyer and unknown trade brand after the source changes to cash
+  and its brand and co-buyer facts change. All 31 packet tests passed on
+  SQLite. Independent review of legal cases remains open.
 
 - [ ] Obtain rights to current Florida forms; review applicability, versions,
   document-specific required facts, rebuilt-title disclosures, odometer rules,
   delivery and retention with qualified reviewers.
-  (Research registry v5 records federal odometer and Florida reassignment/secure
-  power-of-attorney sources, exceptions and open acceptance/rights questions;
-  no applicability decision or live form is enabled. See
+  (November 18 downloads verified four FLHSMV procedures and three
+  odometer/reassignment and power-of-attorney form revisions. Secure 82995
+  stock, acceptance and rights still require review. Research registry v7
+  records the source updates. Thirty packet tests passed, including refresh
+  of older previews and preservation of saved artifacts. The isolated
+  PostgreSQL restore also passed with v7. See
   [Florida document research](FLORIDA_DOCUMENT_RESEARCH.md).)
 - [ ] Build approved document packs, applicability checks, previews, immutable
   generated versions and signed-artifact retention/export.
@@ -703,6 +714,9 @@ professional review.
   The November evaluation and competitor workflow notes were reviewed as well;
   stale report and customer-history descriptions were corrected while retaining
   the private-reference release restrictions.
+  A November 18 source check of the development and PostgreSQL integration
+  guides clarified how to switch database modes and verify that the integration
+  test database name is unused before running tests.
   On November 9, source and template review also covered exactly
   `docs/ACCOUNT_SEARCH.md`, `docs/CUSTOMER_ADDRESSES.md`,
   `docs/CUSTOMERS_AND_DEALS.md`, `docs/DEAL_FOLLOWUPS.md`,

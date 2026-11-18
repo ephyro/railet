@@ -4,7 +4,7 @@ Research date: 2026-11-05; Buyers Guide and title-application research updated 2
 
 | Document or workflow | Primary authority and applicability | Development position and unresolved review |
 | --- | --- | --- |
-| Motor vehicle title application | [FLHSMV HSMV 82040 MV](https://www.flhsmv.gov/pdf/forms/82040.pdf) is indexed as rev. 07/23, but direct access was blocked on 2026-11-07; current revision is unconfirmed. [FLHSMV notice INFO 23-023](https://www.flhsmv.gov/pdf/bulletins/2023/info23-023.pdf) describes the 2023 split and planned transition; see research notes below. | The independent synthetic practice worksheet does not reproduce, populate, validate, sign or file the form. Verify the current form and procedure, transaction applicability, reproduction rights, required facts, brand classification and acceptance before production. |
+| Motor vehicle title application | The [FLHSMV HSMV 82040 MV PDF](https://www.flhsmv.gov/pdf/forms/82040.pdf) served on November 18, 2026 was rev. 07/23. [FLHSMV notice INFO 23-023](https://www.flhsmv.gov/pdf/bulletins/2023/info23-023.pdf) documents the transition. | The independent synthetic practice worksheet does not reproduce, populate, validate, sign or file the form. Confirm the applicable procedure, required facts, brand classification, reuse rights and filing acceptance before production. |
 | Branded vehicles | [Florida Statutes §319.14](https://www.leg.state.fl.us/Statutes/index.cfm?App_mode=Display_Statute&StatuteYear=2026&URL=0300-0399/0319/Sections/0319.14.html) and [FLHSMV dealer handbook](https://www.flhsmv.gov/pdf/dealerservices/dealerhandbook.pdf). Applicability depends on vehicle, brand and circumstances. | Preserve the recorded brand, including unknown; do not infer all required documents or disclosure wording. Counsel must review the required notices, recipients and timing, including applicable effective dates, before enabling live paperwork. |
 | Retail installment sales | [Florida Statutes §520.07](https://www.flsenate.gov/Laws/Statutes/2026/520.07) specifies requirements for covered contracts. [Regulation Z §1026.18](https://www.consumerfinance.gov/rules-policy/regulations/1026/18/) sets disclosures for applicable closed-end credit. | No binding retail installment contract or APR disclosure is generated. Obtain counsel-approved forms and transaction-specific applicability, verify effective dates and calculations independently, and verify completion, signing, copies, retention and delivery before live use. A draft balance is not an amount financed. |
 | Used vehicle Buyers Guide | [FTC dealer guide to the Used Car Rule](https://www.ftc.gov/business-guidance/resources/dealers-guide-used-car-rule) explains display and delivery requirements for covered sales and exceptions. | Review vehicle/transaction applicability and warranty choices before generating or delivering an official guide. No automatic coverage determination. |
@@ -33,16 +33,74 @@ On 2026-11-10 the full CFPB HTML pages for [§1026.17](https://www.consumerfinan
 
 Checked 2026-11-10: [49 CFR Part 580](https://www.ecfr.gov/current/title-49/subtitle-B/chapter-V/part-580) displayed Title 49 current through 2026-11-06. The [2019 NHTSA final rule](https://www.federalregister.gov/documents/2019/10/02/2019-20360/odometer-disclosure-requirements) states a 2019-12-31 effective date; the [NHTSA 2020 consumer alert](https://www.nhtsa.gov/press-releases/consumer-alert-changes-odometer-disclosure-requirements) describes the 2021 transition for the extended model-year requirement. These dates concern the cited rule and transition, not the effective dates of every historical provision. Recheck current federal and Florida authorities before implementation.
 
-**Florida source provenance:** On 2026-11-10, direct web-tool requests for TL-02, TL-09, TL-69, HSMV 82993, 82994 and 82053 each returned HTTP 403. Earlier research surfaced indexed text associated with official FLHSMV URLs, sometimes presented as extracted PDF text; this does not establish direct retrieval of the PDF bytes or that the index is current or complete. The revision labels and Florida procedure statements below are reported by that indexed text and remain unverified against the directly obtained official files. Command-line attempts in this environment could not resolve the host. Obtain the complete current files from FLHSMV and check the relevant passages and dates before treating them as verified.
+**Florida source provenance:** On November 18, 2026, direct downloads of the
+following FLHSMV PDFs succeeded after HTTP 403 responses in the earlier review.
+Each of the four procedures lists immediate effectiveness. The digests identify
+the files retrieved on that date.
+
+| Official PDF | Printed revision | Bytes | SHA-256 |
+| --- | --- | ---: | --- |
+| [tl-02.pdf](https://www.flhsmv.gov/pdf/proc/tl/tl-02.pdf) | 03/25 | 355022 | `a68a7c99d150fd4401d94641b12e59cca931ea51e637fdc60c7b476ba2fed7de` |
+| [tl-09.pdf](https://www.flhsmv.gov/pdf/proc/tl/tl-09.pdf) | 06/2026 | 962668 | `6ce533d434aad092f129a4882fa17ec90286f9b3c99fadc97dbc2d18d0d4e419` |
+| [tl-11.pdf](https://www.flhsmv.gov/pdf/proc/tl/tl-11.pdf) | 06/26/23 | 1435533 | `da6952769a3bb36f3fffdd9edbdd885f5db5f784cb4b6fe87c51b5d446918028` |
+| [tl-69.pdf](https://www.flhsmv.gov/pdf/proc/tl/tl-69.pdf) | 11/2025 | 284544 | `bb773d3b891ff9480462b4658a90c8a22ccd30006f9ce871c402e96cd1d38afc` |
+| [82993.pdf](https://www.flhsmv.gov/pdf/forms/82993.pdf) | 11/11 | 30898 | `b6b8d78a9778310088303f4e5beb14e0ed6475e872e444ad50fa2c60e7e5dae8` |
+| [82994.pdf](https://www.flhsmv.gov/pdf/forms/82994.pdf) | 04/14 | 245558 | `7a92d94cd8e97867460872c30ad11e9945c56ed010ec113979f7c63afcd83cfb` |
+| [82053.pdf](https://www.flhsmv.gov/pdf/forms/82053.pdf) | 06/16/22 | 219634 | `f6be114e5b766022b9b229152643e08a23f1cb9a29434a73b2ce34da538e1883` |
 
 - **Disclosure facts and exception review:** Section 580.5 describes the transferor's disclosure on the title or permitted reassignment, mileage without tenths, transfer date, printed names and addresses of both parties, make, model, year, body type and VIN. It requires signatures and mileage-status certification, including the applicable mechanical-limit or discrepancy statements. Section 580.5(f) describes transferee acknowledgment; review the full text and particular transaction, including leases. Section 580.17 identifies exceptions including vehicles over 16,000 pounds GVWR, vehicles not self-propelled, specified older model years, certain manufacturer-to-US-government sales, and a limited new-vehicle resale exception. Its age provisions measure from January 1 of the model-year calendar year: model year 2010 or earlier uses 10 years; 2011 onward uses 20 years. An exception from federal disclosure does not by itself establish Florida exemption or applicability in Railet.
-- **Florida separate statement and reassignment:** Indexed [HSMV 82993](https://www.flhsmv.gov/pdf/forms/82993.pdf) text reports rev. 11/11 and lists situations where it should not be used, including an available qualifying Florida title and certain other form/title situations. Indexed [HSMV 82994](https://www.flhsmv.gov/pdf/forms/82994.pdf) text reports rev. 04/14; indexed [TL-09](https://www.flhsmv.gov/pdf/proc/tl/tl-09.pdf) text reports revision 2021-02-05, effective immediately, and describes secure dealer reassignment and title chains. Indexed [TL-69](https://www.flhsmv.gov/pdf/proc/tl/tl-69.pdf) text reports revision 11/2025, effective immediately, and discusses certain electronic-title trade-ins. These are unverified indexed references, not retrieved file versions or proof of current rules. Verify which title, agency process and form apply, including how Florida's paper supplement instructions interact with federal electronic-reassignment requirements; do not resolve that interaction by assumption.
-- **Secure authority and signatures:** Sections 580.4 and 580.13–580.16 describe jurisdiction-issued secure physical documents, conditions for powers of attorney, authorized parties, required mileage disclosures and certification, and title/reassignment comparisons. Federal §580.13 also describes certain electronic-title conditions if jurisdiction law permits; this does not establish that Florida accepts a Railet-generated or electronically signed equivalent. Indexed [Florida TL-02](https://www.flhsmv.gov/pdf/proc/tl/tl-02.pdf) text reports revision 03/25, effective immediately, discusses secure HSMV 82995 for specified lost or lienholder-held title cases, the named agent and Part C, and says the original must be submitted. Indexed guidance distinguishes non-secure [HSMV 82053](https://www.flhsmv.gov/pdf/forms/82053.pdf), reported as rev. 06/16/22, and discusses additional dealership-agent restrictions. Full PDFs and current revisions remain unverified. Confirm current state treatment, exemptions, out-of-state documents and who may sign in each capacity; do not treat a generic power or a scanned copy as a substitute for secure stock.
-- **Retention and rights:** Federal §580.8 addresses retention of covered disclosure statements and certain powers of attorney, including separate electronic-record requirements and exceptions; indexed Florida form text describes document-specific filing and retention directions that need direct verification. Resolve applicable periods, legal holds, originals, copies and agency acceptance with counsel; this research adds no deletion control. Verify how dealers obtain HSMV 82994/82995 secure stock, permissions to reproduce or redistribute any form, acceptance of electronic signatures and records, and the current revisions with FLHSMV and the receiving office. Indexed examples do not establish authorization to generate or file them.
+- **Florida separate statement and reassignment:** HSMV 82993 lists restrictions on using a separate odometer statement. TL-09 identifies 82994 as a secure supplement and sets out original submission and dealer-copy retention. TL-11 (pp. 4 and 6) describes distinct trade-in paths: use the paper title reassignment when space is available, and use 82994 for the electronic-title scenario it describes. Its later reassignment to a Florida purchaser and its out-of-state purchaser scenario have separate instructions. Confirm case boundaries and current receiving-office procedures before enabling these scenarios.
+- **Secure authority and signatures:** Sections 580.4 and 580.13–580.16 address secure documents, authorized parties and required mileage disclosures. TL-02 describes secure HSMV 82995, including original submission and Part C certification. The retrieved HSMV 82053 is the general power of attorney. Secure 82995 stock revision and procurement, which parties may sign in each capacity, and acceptance of electronic signing through a specific channel remain open.
+- **Retention and rights:** Section 580.8 covers retention of specified disclosure statements and powers of attorney. TL-09 specifies a five-year dealer-copy period for 82994. Resolve record-specific originals, copies, legal holds, reproduction rights and agency acceptance with counsel and the receiving office. Automatic disposal stays disabled.
 
 Registry `fl-research-2026-11-10-v4` added reassignment and secure-power research topics; `fl-research-2026-11-10-v5` corrects their Florida-source provenance. These versions name the catalog, not an official form. Topics are displayed for review and do not decide applicability. Saved packet HTML and snapshots remain frozen; changed catalog versions require a fresh preview for new packets. No form generation, secure form issuance, disclosure, electronic signature or live filing is enabled.
 
+### Rebuilt title, sale disclosures and advertising
+
+The 2026 Florida compilation separates the title and inspection conditions
+in subsection (1) from written disclosure before consummation in subsection
+(2) and the clear notice required when knowingly or intentionally making a
+public offer in subsection (3). Have counsel map these duties by brand and
+transaction, including the notice wording, placement and evidence of delivery.
+Keep unknown brands explicit in synthetic records. [Fla. Stat. § 319.14](https://www.flsenate.gov/Laws/Statutes/2026/319.14)
+
+On November 18, 2026, FLHSMV served TL-37 rev. 08/25, effective immediately,
+and the Statement of Builder HSMV 84490 rev. 05-2024. Both concern rebuilt
+title applications and the supporting inspection process. Confirm the
+distinction between rebuilding a vehicle and acquiring inventory already
+branded rebuilt, and review the retail notice separately.
+[TL-37](https://www.flhsmv.gov/pdf/proc/tl/tl-37.pdf) · [HSMV 84490](https://www.flhsmv.gov/pdf/forms/84490.pdf)
+
 ### HSMV 82040 MV: research only
+
+Research registry `fl-research-2026-11-18-v7` records the directly verified
+title application, dealer reassignment and power-of-attorney procedure
+revisions. Previously saved artifacts retain their original registry version.
+
+On November 18, 2026, direct downloads from FLHSMV returned HTTP 200 and both
+PDFs were readable. Both pages of the application identify revision 07/23.
+The notice is dated June 26, 2023 and states January 1, 2024 as the start of
+required processing on the separate MV and MH forms. These downloads verify
+the files served at those URLs. Transaction procedures, reproduction rights
+and electronic filing acceptance still require confirmation.
+
+Florida's 2026 statute describes electronic titling and registration through
+authorized Electronic Filing System agents and provides for county appointment
+of qualified entities. Confirm the pilot dealership's appointment, provider
+and supported transactions, and the receiving office's instructions for any
+paper originals. The statute does not establish acceptance of Railet-generated
+forms or signatures. [Fla. Stat. § 320.03(10)](https://www.flsenate.gov/Laws/Statutes/2026/320.03)
+The official rule index lists EFS agent participation (15C-16.010) and
+system requirements and customer disclosure (15C-16.012) with effective
+dates of November 22, 2011, and provider certification (15C-16.011) with
+an effective date of December 14, 2010. Confirm current enrollment and
+document acceptance with the county and certified provider before designing
+a submission workflow. [Florida Administrative Code chapter 15C-16](https://flrules.org/gateway/ChapterHome.asp?Chapter=15C-16)
+
+| Retrieved file | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `82040.pdf` | 458843 | `902f34e1a8f401ca75ca33ae29ddc4b6c62433f93dcbf3f260caa3d24cfca1dc` |
+| `info23-023.pdf` | 902374 | `e0656b8596966b1fd381d470790a2beb18f3f09fa864d6848dfdc7b7bb64ef77` |
 
 On 2026-11-07, the indexed text of the [FLHSMV application PDF](https://www.flhsmv.gov/pdf/forms/82040.pdf) identified HSMV 82040 MV, rev. 07/23, and sections for applicants, vehicle description, brands, liens, transfer and odometer. It directs submission to a local tax collector or license plate agency and says fields are required unless stated otherwise or not applicable. The indexed text is not necessarily current: direct retrieval of the PDF and procedures returned HTTP 403, so neither its full current contents nor its latest revision was independently verified.
 

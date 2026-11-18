@@ -30,7 +30,7 @@ export RAILET_SQLITE=1
 .venv/bin/python manage.py runserver
 ```
 
-For PostgreSQL, omit `RAILET_SQLITE` and configure `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, and `POSTGRES_PORT`. `RAILET_DEBUG=1` is an explicit development opt-in. Debug-off settings require a secret key and enforce HTTPS/cookie defaults; those defaults alone are not production hardening.
+For PostgreSQL, run `unset RAILET_SQLITE` if you exported it above and configure `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, and `POSTGRES_PORT`. `RAILET_DEBUG=1` is an explicit development opt-in. Debug-off settings require a secret key and enforce HTTPS/cookie defaults; those defaults alone are not production hardening.
 
 Generate migrations in a writable local checkout, then apply them in the container:
 
@@ -49,4 +49,4 @@ The pre-publication development-VM PostgreSQL run passed 153 tests on October 24
 
 See [customers/deals](CUSTOMERS_AND_DEALS.md), [photos/filters](PHOTOS_AND_FILTERS.md), [financing proposals](DEAL_TYPES_AND_TERMS.md), [trades](TRADE_INS.md), [review](DEAL_REVIEW.md), [VIN review](DUPLICATE_VIN_REVIEW.md), [supporting PDFs](DEAL_FILES.md), [vehicle work and costs](VEHICLE_WORK_AND_COSTS.md), [completion rehearsal](DEMO_COMPLETION.md), and [ledger foundation](LEDGER_FOUNDATION.md) for implementation boundaries and remaining gates.
 
-Historical PostgreSQL integration follow-up: a separate local PostgreSQL 17.11 instance passed all 237 tests at that October 2026 slice without skips (and 466 tests at the [November 2026 developer evaluation](EVALUATION_2026_11.md)); subsequent slices and migrations must be migrated and tested via `./dev/postgres.sh` on PostgreSQL as well as SQLite (see [REMAINING_WORK.md](REMAINING_WORK.md)). See [POSTGRES_INTEGRATION.md](POSTGRES_INTEGRATION.md) for the helper, migrated schema, browser/restore checks, [SYNTHETIC_RESTORE_EXERCISE.md](SYNTHETIC_RESTORE_EXERCISE.md) for the disposable `dev/restore_exercise.py` script, and the distinction from the original offline VM.
+Historical PostgreSQL integration follow-up: a separate local PostgreSQL 17.11 instance passed all 237 tests at that October 2026 slice without skips (and 466 tests at the [November 2026 developer evaluation](EVALUATION_2026_11.md)); subsequent slices and migrations must be migrated and tested on PostgreSQL via `./dev/postgres.sh` and separately on SQLite via `manage.py` with the local environment above (see [REMAINING_WORK.md](REMAINING_WORK.md)). See [POSTGRES_INTEGRATION.md](POSTGRES_INTEGRATION.md) for the helper, migrated schema, browser/restore checks, [SYNTHETIC_RESTORE_EXERCISE.md](SYNTHETIC_RESTORE_EXERCISE.md) for the disposable `dev/restore_exercise.py` script, and the distinction from the original offline VM.

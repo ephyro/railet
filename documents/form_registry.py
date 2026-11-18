@@ -6,7 +6,7 @@ revisions. Nothing here authorizes production use or declares a form required.
 """
 from dataclasses import dataclass
 
-REGISTRY_VERSION = 'fl-research-2026-11-10-v6'
+REGISTRY_VERSION = 'fl-research-2026-11-18-v7'
 
 
 @dataclass(frozen=True)
@@ -27,8 +27,8 @@ REFERENCES = (
     DocumentReference(
         'title', 'Florida motor vehicle title application (HSMV 82040 MV)',
         ('cash', 'bhph', 'other'), 'FLHSMV',
-        'Indexed FLHSMV form marked Rev. 07/23; direct PDF unavailable at review, so current revision remains unconfirmed.',
-        'Publicly indexed official form; reproduction, redistribution, electronic completion and filing acceptance unverified.',
+        'HSMV 82040 MV rev. 07/23. FLHSMV PDF directly downloaded and extracted 2026-11-18.',
+        'Official FLHSMV form; reproduction, redistribution, electronic completion and filing acceptance unverified.',
         'Review vehicle, transaction, jurisdiction and correct title procedure; no automatic determination.',
         'Review applicant/co-owner, vehicle, ownership, liens, odometer, brand, signatures and supporting evidence; unknowns remain unknown.',
         'https://www.flhsmv.gov/pdf/forms/82040.pdf', ('buyer', 'address', 'vin', 'brand'),
@@ -45,8 +45,8 @@ REFERENCES = (
     DocumentReference('brand', 'Vehicle brand disclosure', ('cash', 'bhph', 'other'), 'Not selected', 'Not selected', 'Template rights not established', 'Review recorded brand and applicable disclosure requirements; do not infer from this list.', 'Verify disclosure wording, timing and delivery for the facts.', 'https://www.leg.state.fl.us/Statutes/index.cfm?App_mode=Display_Statute&StatuteYear=2026&URL=0300-0399/0319/Sections/0319.14.html', ('brand',)),
     DocumentReference(
         'odometer', 'Odometer disclosure / title reassignment', ('cash', 'bhph', 'other'), 'NHTSA / FLHSMV',
-        '49 CFR Part 580 reviewed 2026-11-10; indexed 82993 text reports rev. 11/11; PDF access blocked, current revision unconfirmed.',
-        'Indexed official-source text only for Florida form; reproduction, electronic acceptance and form use require verification.',
+        '49 CFR Part 580 reviewed 2026-11-10; HSMV 82993 rev. 11/11. FLHSMV PDF directly downloaded and extracted 2026-11-18.',
+        'Florida form reproduction, electronic acceptance and form use require verification.',
         'Review title, transfer, vehicle and exemptions; no automatic determination. A separate form is not always appropriate.',
         'Review VIN, vehicle identity, transfer date, mileage/status, parties, addresses and signatures; verify title or authorized reassignment.',
         'https://www.ecfr.gov/current/title-49/subtitle-B/chapter-V/part-580', ('vin', 'odometer'),
@@ -54,8 +54,8 @@ REFERENCES = (
     DocumentReference(
         'dealer-reassignment', 'Dealer title reassignment supplement (HSMV 82994)',
         ('cash', 'bhph', 'other'), 'FLHSMV',
-        'Indexed text reports 82994 rev. 04/14 and TL-09 rev. 02/05/2021, effective immediately; direct PDFs blocked and versions unconfirmed.',
-        'Indexed TL-09 text identifies secure stock; procurement, reproduction and electronic acceptance unverified.',
+        'HSMV 82994 rev. 04/14. Procedure TL-09 rev. 06/2026, effective immediately. Both FLHSMV PDFs directly downloaded and extracted 2026-11-18.',
+        'TL-09 identifies secure stock; procurement, reproduction and electronic acceptance unverified.',
         'Review title type, assignment chain, available spaces and transaction; no automatic determination.',
         'Review VIN, title and vehicle identity, dealer/seller and purchaser details, mileage, dates, signatures and sequence.',
         'https://www.flhsmv.gov/pdf/proc/tl/tl-09.pdf', ('vin', 'odometer'),
@@ -63,7 +63,7 @@ REFERENCES = (
     DocumentReference(
         'secure-odometer-poa', 'Secure odometer power of attorney (HSMV 82995)',
         ('cash', 'bhph', 'other'), 'FLHSMV / NHTSA',
-        'Indexed TL-02 text reports rev. 03/25, effective immediately; direct PDF blocked and current procedure and form revisions unconfirmed.',
+        'Procedure TL-02 rev. 03/25, effective immediately. FLHSMV procedure PDF directly downloaded and extracted 2026-11-18. Secure HSMV 82995 form revision remains unverified.',
         'Jurisdiction-issued secure form; procurement, reproduction and electronic acceptance unverified.',
         'Review title availability, parties and authority, jurisdiction and exemptions; no automatic determination.',
         'Review VIN, parties, named agent, mileage/status, signatures, title sequence, Part C certification and original submission.',

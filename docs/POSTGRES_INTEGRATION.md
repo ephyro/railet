@@ -18,8 +18,7 @@ The cluster listens on **no TCP addresses**. It uses an owner-only directory/soc
 
 ## Existing checkout commands
 
-These commands require an existing `.venv/bin/python` with project dependencies,
-an already initialized dedicated cluster, and the database described below.
+Every helper command requires an executable `pg_ctl`. Cluster control uses the initialized data directory. Management commands also require `.venv/bin/python` with project dependencies. Start the dedicated cluster before database work.
 From the project root (run individually as needed, not as a setup/reset batch):
 
 ```sh
@@ -27,11 +26,13 @@ From the project root (run individually as needed, not as a setup/reset batch):
 ./dev/postgres.sh start
 ./dev/postgres.sh check
 ./dev/postgres.sh migrate --noinput
-./dev/postgres.sh test --noinput
+./dev/postgres.sh test
 ./dev/postgres.sh stop
 ```
 
 `start` only starts an already initialized cluster; it never resets or initializes data. `stop` stops the integration database and affects any local preview using it. The helper explicitly sets PostgreSQL mode, avoiding an inherited SQLite opt-in. Set `RAILET_PG_BIN` to an existing compatible PostgreSQL tools directory when using a different local installation. It does not modify shell startup or system services. The helper fixes the data/socket paths, database name and current Unix username; `RAILET_PG_BIN` changes only the tool directory. It forces DEBUG on and SQLite off for management commands but does not sanitize the rest of the environment (including private-media/settings overrides or libpq options). Use a dedicated synthetic environment and review inherited overrides before use; it does not verify an already-running cluster's authentication/listener configuration. Do not reinitialize an existing data directory. Migration is an explicit schema mutation; back up existing database and private files and review the upgrade separately.
+
+Before running tests, confirm the configured test database name is unused and the test role can create databases. The helper forwards test arguments to Django. With `--noinput`, Django can destroy an existing database at the test name without prompting.
 
 On another workstation, install or build PostgreSQL 17 through your preferred trusted mechanism; initialize a separate development-only cluster under `.local/pg-integration/data`, create `.local/pg-integration/socket` owner-only, and create database `railet_integration` owned by your current Unix username. Do not point this helper at production data. The cluster used here was initialized with UTF-8, `--no-locale`, `--auth-local=trust`, `--auth-host=reject`, and started with empty `listen_addresses` and `unix_socket_permissions=0700`. No cluster initialization is hidden inside test commands.
 
