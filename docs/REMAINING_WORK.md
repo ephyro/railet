@@ -11,7 +11,7 @@ with 2 skips. These are developer checks, not staff, legal or production
 validation. On November 9, an isolated PostgreSQL suite passed 638 tests with
 2 skips; a later full SQLite run covered 668 tests with 45 skips after the audit
 guard migration. On November 14, the full isolated PostgreSQL suite covered
-684 tests with 2 skips; the latest full runs covered 777 tests with 78 skips on
+684 tests with 2 skips; the latest full runs covered 779 tests with 78 skips on
 SQLite and 777 tests with 4 skips on PostgreSQL. These
 developer checks do not establish production readiness.
 
