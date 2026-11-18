@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: MPL-2.0
 from decimal import Decimal
 from unittest.mock import patch
+from uuid import uuid4
 from django.contrib.auth import get_user_model
+from django.core.exceptions import PermissionDenied
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from core.models import Dealership, Membership
@@ -73,6 +75,36 @@ class DemoPacketTests(TestCase):
         second=self.save(token)
         self.assertEqual(first.url,second.url)
         self.assertEqual(DemoDealPacket.objects.count(),1)
+
+    def test_direct_creation_and_retry_recheck_active_editor(self):
+        from .packets import create_packet, packet_source, source_digest
+        actor = self.users['staff']
+        args = dict(dealership_id=self.dealer.pk, deal_id=self.deal.pk, actor=actor, creation_key=uuid4(),
+                    expected_source=source_digest(packet_source(dealership_id=self.dealer.pk, deal_id=self.deal.pk)))
+        member = Membership.objects.get(user=actor)
+        for already_saved in (False, True):
+            if already_saved:
+                packet, created = create_packet(**args)
+                self.assertTrue(created)
+                frozen = (packet.html, packet.snapshot, packet.source_sha256, packet.artifact_sha256, packet.template_version)
+            for revoked in ('inactive', 'viewer', 'foreign', 'removed'):
+                with self.subTest(already_saved=already_saved, revoked=revoked):
+                    if revoked == 'inactive':
+                        get_user_model().objects.filter(pk=actor.pk).update(is_active=False)
+                    elif revoked == 'viewer':
+                        Membership.objects.filter(pk=member.pk).update(role='viewer')
+                    elif revoked == 'foreign':
+                        Membership.objects.filter(pk=member.pk).update(dealership=self.other)
+                    else:
+                        Membership.objects.filter(pk=member.pk).delete()
+                    with self.assertRaises(PermissionDenied):
+                        create_packet(**args)
+                    self.assertEqual(DemoDealPacket.objects.count(), int(already_saved))
+                    if already_saved:
+                        packet.refresh_from_db()
+                        self.assertEqual((packet.html, packet.snapshot, packet.source_sha256, packet.artifact_sha256, packet.template_version), frozen)
+                    get_user_model().objects.filter(pk=actor.pk).update(is_active=True)
+                    member, _ = Membership.objects.update_or_create(user=actor, defaults={'dealership': self.dealer, 'role': 'staff'})
 
     def test_source_changes_require_new_preview(self):
         token=self.token()

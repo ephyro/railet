@@ -94,6 +94,31 @@ class FeedbackTests(TestCase):
         self.assertEqual(self.save(self.preview()).status_code, 302)
         self.assertEqual(FeedbackReport.objects.get().author, self.users['viewer'])
 
+    def test_stale_membership_cannot_save_or_retry(self):
+        select = Membership.objects.select_for_update
+        for already_saved in (False, True):
+            for revoked in ('inactive', 'foreign', 'removed', 'invalid_role'):
+                with self.subTest(already_saved=already_saved, revoked=revoked):
+                    data = self.data | {'submission_key': str(uuid.uuid4())}
+                    token = self.preview(data)
+                    if already_saved:
+                        self.assertEqual(self.save(token).status_code, 302)
+                    count = FeedbackReport.objects.count()
+                    def revoke():
+                        user = self.users['staff']
+                        if revoked == 'inactive':
+                            get_user_model().objects.filter(pk=user.pk).update(is_active=False)
+                        elif revoked == 'removed':
+                            Membership.objects.filter(user=user).delete()
+                        elif revoked == 'foreign':
+                            Membership.objects.filter(user=user).update(dealership=self.other)
+                        else:
+                            Membership.objects.filter(user=user).update(role='invalid')
+                        return select()
+                    with patch('feedback.views.Membership.objects.select_for_update', side_effect=revoke):
+                        self.assertEqual(self.save(token).status_code, 403)
+                    self.assertEqual(FeedbackReport.objects.count(), count)
+
     def test_edit_round_trip_preserves_values_without_saving(self):
         token = self.preview()
         response = self.client.post(reverse('feedback_confirm'), {'preview_token': token, 'action': 'edit'})

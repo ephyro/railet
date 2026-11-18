@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST, require_safe
-from core.access import context, member_view, require_editor
+from core.access import authorized_private_export, context, member_view, require_editor
 from core.models import Dealership
 from .models import Vehicle, VehicleVendor, ReconTask, VehicleCostEntry
 from .recon_forms import TaskForm, TaskEditForm, CostForm, TaskStatusForm, CostReversalForm, VendorProfileForm
@@ -106,6 +106,12 @@ def _export_vehicle_costs(request, vehicle):
 @member_view
 @require_safe
 def workspace(request, pk):
+    if request.GET.get('export') == 'costs':
+        return authorized_private_export(_workspace)(request, pk)
+    return _workspace(request, pk)
+
+
+def _workspace(request, pk):
     vehicle = _vehicle(request, pk)
     # One dealer lock captures a coherent cost journal, baseline and task list.
     with transaction.atomic():
@@ -296,6 +302,7 @@ def queue(request):
 @never_cache
 @member_view
 @require_safe
+@authorized_private_export
 def queue_export(request):
     filters, state, tasks, today, scope, schedule, age = _filtered_queue_tasks(request)
     if state.errors:

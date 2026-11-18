@@ -1,6 +1,6 @@
 # Synthetic customer export
 
-Owners can open Customers → Export customer data to review the scope and download a JSON file. Only an active owner of the current dealership can use either endpoint. Both development mode and the synthetic customer activity gate must be enabled. The gates do not prove the data entered is synthetic; use invented records only.
+Owners can open Customers → Export customer data to review the scope and submit a POST to prepare a JSON download. Only an active owner of the current dealership can use either endpoint. Authorization locks the dealership and rechecks the owner membership and user. Both development mode and the synthetic customer activity gate must be enabled. The gates do not prove the data entered is synthetic; use invented records only.
 
 Version `railet-synthetic-customers-v3` retains the v2 customer records, activities, change events and offline mock message history and adds `customer_export_events`: prior same-dealership customer export-preparation records with IDs, actor, timestamp, format, byte size and SHA-256. Existing v2 exports remain unchanged; consumers must recognize the v3 format before relying on the added field. The dealership ZIP includes this component. Mock labels describe an invented local simulation, not real delivery or consent; simulator history remains included even when its optional feature flag is disabled. Customer records can include free text and user IDs. It excludes deals, vehicles, finance, files, other modules and user records. It is not a complete dealership export or backup, and there is no import or restore function. JSON is unencrypted and must be kept private.
 
@@ -8,4 +8,8 @@ The capture uses several queries in one database transaction, but does not guara
 
 Each successful download response is prepared in the same transaction as a `CustomerExportEvent` containing the owner, dealership, timestamp, format, size and SHA-256 hash, without customer contents. The event for a particular download is written after that file is prepared, so it cannot appear in that file; a later export can include it. If audit creation fails the file is not returned. An event establishes preparation, not proof of delivery; hashes are not signatures. The audit table has update/delete guards and an owner/dealership insert guard on SQLite and PostgreSQL; privileged database administrators may bypass them. No transmission, production use, or claim of regulatory compliance is enabled.
 
-The customer export service can be called internally without creating this download event; any other caller that exposes output must apply equivalent authorization, privacy and auditing controls. Run migrations before enabling the workflow.
+The internal customer export service also checks the active owner and gates, but
+does not itself create a download event. Other callers that expose its output
+must provide the appropriate privacy and auditing controls. These descriptions
+come from a source review, not a new restore exercise, staff validation or
+production-readiness assessment. Run migrations before enabling the workflow.

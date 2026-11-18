@@ -2,6 +2,19 @@
 
 This walkthrough demonstrates navigation and retained records across the end-to-end synthetic BHPH flow: **vehicle → customer → deal → synthetic completion rehearsal → BHPH account → test receipt → reversal**. It does not originate a loan, allocate payments, validate Florida paperwork, mark a vehicle sold, or permit real customer data. Use invented names and records only.
 
+![Railet synthetic BHPH account for Riley Demo showing a $125.50 test receipt reversed in full, $0.00 unapplied payments, and uncalculated amount due and late status.](images/bhph-synthetic-account-2026-11-18.png)
+
+Current account view captured November 18, 2026 in headless Firefox from a fresh,
+disposable SQLite development database seeded with invented records. This account
+was linked to a synthetic draft and given a test receipt and full reversal through
+the application services; the image illustrates the payment-history outcome in
+Step 6, not verification of the entire completion journey. The original browser
+capture was visually checked for readability and private information; page
+resources were loopback-only, with no horizontal overflow at the captured desktop
+size. The temporary server, browser, database and media workspace were closed and
+removed after capture. Existing databases were not used. This is developer
+documentation evidence, not staff validation or production acceptance.
+
 ## Prerequisites
 
 - Run the development build (`RAILET_DEBUG=1`), which enables the synthetic gates (`FL_TAX_ESTIMATES_ENABLED`, `RECON_DEMO_ENABLED`, `DEAL_FILES_DEMO_ENABLED`, `CUSTOMER_ACTIVITY_DEMO_ENABLED`, `DEMO_PACKETS_ENABLED`, `DEMO_COMPLETION_ENABLED`, `DEMO_LEDGER_ENABLED`, and `DEMO_SERVICING_ENABLED`).

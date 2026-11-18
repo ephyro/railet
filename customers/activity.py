@@ -12,8 +12,20 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 from core.access import member_view, context, require_editor
-from core.models import Membership
+from core.models import Dealership, Membership
 from .models import Customer, CustomerActivity, CustomerEvent, phone_key
+
+
+def _locked_editor(user, dealership_id):
+    return bool(getattr(user, 'pk', None)) and Membership.objects.select_for_update().filter(
+        user_id=user.pk, user__is_active=True, dealership_id=dealership_id,
+        role__in=['owner', 'staff'],
+    ).exists()
+
+
+def _require_locked_editor(user, dealership_id):
+    if not getattr(user, 'is_authenticated', False) or not _locked_editor(user, dealership_id):
+        raise PermissionDenied
 
 
 class ActivityForm(forms.Form):
@@ -46,14 +58,14 @@ def create(request, pk):
     form = ActivityForm(request.POST if request.method == 'POST' else None, dealership=request.member.dealership)
     if request.method == 'POST' and form.is_valid():
         with transaction.atomic():
+            Dealership.objects.select_for_update().get(pk=request.member.dealership_id)
             customer = get_object_or_404(Customer.objects.select_for_update(), pk=pk, dealership=request.member.dealership)
-            if not Membership.objects.filter(user=request.user, dealership=customer.dealership, role__in=['owner','staff']).exists():
-                raise PermissionDenied
             data = form.cleaned_data
-            if data['assigned_to'] and not Membership.objects.filter(user=data['assigned_to'], user__is_active=True, dealership=customer.dealership, role__in=['owner','staff']).exists():
+            prior = CustomerActivity.objects.select_for_update().filter(customer=customer, creation_key=data['creation_key']).first()
+            _require_locked_editor(request.user, customer.dealership_id)
+            if data['assigned_to'] and not _locked_editor(data['assigned_to'], customer.dealership_id):
                 form.add_error('assigned_to', 'Choose a current staff member from this dealership.')
                 return render(request, 'customers/activity_form.html', context(request, customer=customer, form=form), status=409)
-            prior = CustomerActivity.objects.filter(customer=customer, creation_key=data['creation_key']).first()
             if prior:
                 if prior.created_by_id != request.user.pk or (prior.kind, prior.detail, prior.due_at, prior.assigned_to_id) != (data['kind'], data['detail'], data['due_at'], data['assigned_to'].pk if data['assigned_to'] else None):
                     form.add_error(None, 'This form was already used for another activity. Open a new form.')
@@ -76,10 +88,10 @@ def complete(request, pk, activity_pk):
     if not getattr(settings, 'CUSTOMER_ACTIVITY_DEMO_ENABLED', False): raise Http404
     require_editor(request)
     with transaction.atomic():
+        Dealership.objects.select_for_update().get(pk=request.member.dealership_id)
         customer=get_object_or_404(Customer.objects.select_for_update(), pk=pk, dealership=request.member.dealership)
-        if not Membership.objects.filter(user=request.user, dealership=customer.dealership, role__in=['owner','staff']).exists():
-            raise PermissionDenied
-        activity=get_object_or_404(CustomerActivity, pk=activity_pk, customer=customer, kind__in=['follow_up','appointment'])
+        activity=get_object_or_404(CustomerActivity.objects.select_for_update(), pk=activity_pk, customer=customer, kind__in=['follow_up','appointment'])
+        _require_locked_editor(request.user, customer.dealership_id)
         action=request.POST.get('action', 'complete')
         if action not in ('complete','reopen'):
             raise Http404
@@ -189,20 +201,23 @@ def edit(request, pk, activity_pk):
     require_editor(request)
     status = 200
     with transaction.atomic():
+        if request.method == 'POST':
+            Dealership.objects.select_for_update().get(pk=request.member.dealership_id)
         choices = Customer.objects.filter(dealership=request.member.dealership)
         if request.method == 'POST': choices = choices.select_for_update()
         customer = get_object_or_404(choices, pk=pk)
-        activity = get_object_or_404(CustomerActivity, customer=customer, pk=activity_pk, kind__in=['follow_up','appointment'])
+        activities = CustomerActivity.objects
+        if request.method == 'POST': activities = activities.select_for_update()
+        activity = get_object_or_404(activities, customer=customer, pk=activity_pk, kind__in=['follow_up','appointment'])
         initial = {'detail':activity.detail, 'due_at':activity.due_at, 'assigned_to':activity.assigned_to_id, 'revision':activity.revision}
         form = EditActivityForm(request.POST if request.method == 'POST' else None, dealership=customer.dealership, initial=initial)
         if request.method == 'POST' and form.is_valid():
-            if not Membership.objects.filter(user=request.user, dealership=customer.dealership, role__in=['owner','staff']).exists():
-                raise PermissionDenied
+            _require_locked_editor(request.user, customer.dealership_id)
             data=form.cleaned_data
             if data['revision'] != activity.revision:
                 form.add_error(None, 'This activity changed while you were editing. Your entries are kept; compare the current activity before trying again.')
                 status=409
-            elif data['assigned_to'] and not Membership.objects.filter(user=data['assigned_to'], user__is_active=True, dealership=customer.dealership, role__in=['owner','staff']).exists():
+            elif data['assigned_to'] and not _locked_editor(data['assigned_to'], customer.dealership_id):
                 form.add_error('assigned_to', 'Choose a current staff member from this dealership.')
                 status=409
             else:

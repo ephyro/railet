@@ -10,6 +10,8 @@ dealership chart of accounts and reconcile against external general-ledger (GL)
 exports. **This is an engineering design only.** It does not prescribe tax or
 GAAP capitalization rules, enable QuickBooks or live accounting sync, allocate
 customer payments, or treat existing synthetic controls as a general ledger.
+The chart/mapping models, external GL export and reconciliation workflows in
+sections 2–6 are proposals, not implemented controls or a completed cutover.
 
 ---
 
@@ -185,10 +187,10 @@ provenance back to its authoritative Railet source row:
 
 ## 5. Reconciliation rules and exception classifications
 
-Reconciliation compares Railet's authoritative subledgers against the
-dealership's external GL trial balance / journal export as of a cutoff date.
-All comparisons use integer cents; every discrepancy must be classified and
-retained in an exception report rather than silently adjusted:
+The proposed reconciliation would compare the designated operational
+subledgers against the dealership's external GL trial balance / journal export
+as of a cutoff date. Comparisons would use integer cents, and discrepancies
+would be classified and retained rather than silently adjusted:
 
 1. **`unmapped_category_or_method`:** A `VehicleCostEntry.category` or
    `DemoPosting.payment_method` has no active rule in the selected
@@ -223,11 +225,11 @@ retained in an exception report rather than silently adjusted:
 ## 6. Permissions, isolation, and cutover ownership
 
 - **Permissions and dealership isolation:**
-  - Viewing and exporting accounting reconciliation reports or GL batches
-    requires an active same-dealership membership (`owner` or authorized
-    accounting role; never cross-dealership).
+  - Viewing and exporting future accounting reconciliation reports or GL batches
+    would require an active same-dealership membership (`owner` or an authorized
+    accounting role; never cross-dealership). An accounting role is not currently defined.
   - Creating, activating, or superseding an `AccountingMappingVersion`, or
-    approving a cutover reconciliation, is restricted to active dealership
+    approving a cutover reconciliation, would be restricted to active dealership
     **owners** (`Membership.Role.OWNER`) with CSRF protection, signed preview
     confirmation, and immutable audit events.
 - **Proposed cutover and authoritative-ledger boundary (subject to owner and CPA approval):**

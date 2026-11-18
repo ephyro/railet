@@ -3,9 +3,11 @@ import csv,hashlib,io,json,zipfile
 from datetime import date
 from uuid import uuid4
 from unittest.mock import patch
+from django.contrib.auth import get_user_model
 from django.db import DatabaseError,connection,transaction
 from django.test import TestCase,override_settings
 from django.urls import reverse
+from core.models import Membership
 from deals.account_context import account_draft_snapshot
 from . import test_accounts as fixtures
 from .models import DemoAccountExport,DemoPosting
@@ -86,6 +88,29 @@ class AccountExportTests(TestCase):
         self.client.get(self.url)
         self.assertContains(self.client.get(self.review),'Recent exports prepared')
         self.assertEqual(DemoAccountExport.objects.count(),1)
+
+    def test_identity_revocation_before_locked_check_denies_get_and_head(self):
+        select = Membership.objects.select_for_update
+        for revoked in ('inactive', 'foreign', 'removed', 'invalid_role'):
+            for method in ('get', 'head'):
+                with self.subTest(revoked=revoked, method=method):
+                    def revoke():
+                        actor = self.users['staff']
+                        if revoked == 'inactive':
+                            get_user_model().objects.filter(pk=actor.pk).update(is_active=False)
+                        elif revoked == 'foreign':
+                            Membership.objects.filter(user=actor).update(dealership=self.other)
+                        elif revoked == 'removed':
+                            Membership.objects.filter(user=actor).delete()
+                        else:
+                            Membership.objects.filter(user=actor).update(role='invalid')
+                        return select()
+                    with patch('finance.account_exports.Membership.objects.select_for_update', side_effect=revoke), \
+                         patch('finance.account_exports.build_bundle', side_effect=AssertionError('Unauthorized ZIP preparation')):
+                        response = getattr(self.client, method)(self.url)
+                    self.assertEqual(response.status_code, 403)
+                    self.assertIn('no-store', response['Cache-Control'])
+                    self.assertFalse(DemoAccountExport.objects.exists())
 
     def test_readers_can_export_only_their_dealership_and_disabled_gate_closes(self):
         self.client.force_login(self.users['viewer'])

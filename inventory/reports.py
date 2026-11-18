@@ -14,7 +14,7 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_safe
-from core.access import member_view, context
+from core.access import authorized_private_export, member_view, context
 from .models import Vehicle
 from .reconditioning import with_cost_totals
 
@@ -137,6 +137,7 @@ def investment_report(request):
 @never_cache
 @member_view
 @require_safe
+@authorized_private_export
 def investment_report_export(request):
     vehicles, today, status, age, tts, query, sort = _filtered_vehicles(request)
     rows = list(vehicles[:MAX_EXPORT_ROWS + 1])

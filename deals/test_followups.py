@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: MPL-2.0
 import uuid
 from datetime import timedelta
+from importlib import import_module
 from unittest.mock import patch
 from django.contrib.auth import get_user_model
+from django.db import DatabaseError, connection, transaction
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -59,6 +61,56 @@ class FollowUpTests(TestCase):
         task.refresh_from_db();self.assertIsNone(task.completed_at);self.assertEqual(task.assigned_to,self.users['coworker'])
         self.assertEqual(list(task.events.values_list('action',flat=True)),['reopened','completed','created'])
         self.assertIsNotNone(task.events.get(action='completed').snapshot['completed_at'])
+
+    def test_follow_up_events_reject_database_update_and_delete(self):
+        if connection.vendor not in ('sqlite', 'postgresql'):
+            self.skipTest('Follow-up event guards support SQLite and PostgreSQL.')
+        task = self.create()
+        self.assertEqual(self.edit(task, completed='on').status_code, 302)
+        events = list(task.events.order_by('pk').values())
+        self.assertEqual([row['action'] for row in events], ['created', 'completed'])
+        event_id = events[0]['id']
+
+        def raw(sql):
+            with connection.cursor() as cursor:
+                cursor.execute(sql, [event_id])
+
+        operations = (
+            lambda: FollowUpEvent.objects.filter(pk=event_id).update(action='changed'),
+            lambda: FollowUpEvent.objects.filter(pk=event_id).delete(),
+            lambda: raw("UPDATE deals_followupevent SET action = 'changed' WHERE id = %s"),
+            lambda: raw('DELETE FROM deals_followupevent WHERE id = %s'),
+        )
+        for operation in operations:
+            with self.subTest(operation=operation), self.assertRaisesRegex(DatabaseError, 'Deal follow-up events are immutable'), transaction.atomic():
+                operation()
+        self.assertEqual(list(task.events.order_by('pk').values()), events)
+        self.assertEqual(self.client.get(reverse('followup_detail', args=[task.pk])).status_code, 200)
+
+    def test_follow_up_guard_migration_reverses_and_reapplies_without_losing_rows(self):
+        if connection.vendor not in ('sqlite', 'postgresql'):
+            self.skipTest('Follow-up event guards support SQLite and PostgreSQL.')
+        task = self.create()
+        event = task.events.get()
+        migration = import_module('deals.migrations.0016_followup_event_immutable')
+
+        class Editor:
+            def __init__(self, db):
+                self.connection = db
+
+            def execute(self, sql):
+                with self.connection.cursor() as cursor:
+                    cursor.execute(sql)
+
+        editor = Editor(connection)
+        migration.backward(None, editor)
+        try:
+            self.assertEqual(FollowUpEvent.objects.filter(pk=event.pk).update(action='synthetic'), 1)
+        finally:
+            migration.forward(None, editor)
+        self.assertEqual(FollowUpEvent.objects.get(pk=event.pk).action, 'synthetic')
+        with self.assertRaisesRegex(DatabaseError, 'Deal follow-up events are immutable'), transaction.atomic():
+            FollowUpEvent.objects.filter(pk=event.pk).delete()
 
     def test_stale_edit_is_preserved_and_noop_adds_no_event(self):
         task=self.create();self.assertEqual(self.edit(task).status_code,302)

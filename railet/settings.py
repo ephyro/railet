@@ -58,3 +58,6 @@ DEMO_COMPLETION_ENABLED = DEBUG
 
 # Manual invented customer notes and tasks only.
 CUSTOMER_ACTIVITY_DEMO_ENABLED = DEBUG
+
+# Only used by Django's test command; guards stay enabled outside test cleanup.
+TEST_RUNNER = 'core.test_runner.GuardedSQLiteRunner'

@@ -45,6 +45,8 @@ visible. For each aggregate field, a side with any unknown value has a `None`
 total, and the difference is `None` whenever either side is unknown. Known fields
 remain comparable. Ambiguous mappings still suppress the entire aggregate.
 The report is a rehearsal result, not an approval or evidence of migration.
+The implementation was reviewed against this description on November 17, 2026;
+nine focused tests passed on SQLite. This does not validate an actual migration.
 
 Before any actual migration, separately define verified source snapshots,
 versioned mappings, identification and handling of unknowns, authorization and

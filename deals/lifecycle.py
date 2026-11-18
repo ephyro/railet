@@ -30,6 +30,11 @@ def change_state(request, pk):
             Dealership.objects.select_for_update().get(pk=request.member.dealership_id)
         choices = DraftDeal.objects.filter(dealership=request.member.dealership)
         deal = get_object_or_404(choices.select_for_update() if request.method == "POST" else choices, pk=pk)
+        if request.method == 'POST' and not Membership.objects.select_for_update().filter(
+            user_id=request.user.pk, user__is_active=True, dealership_id=deal.dealership_id,
+            role__in=[Membership.Role.OWNER, Membership.Role.STAFF],
+        ).exists():
+            raise PermissionDenied
         related = [deal.vehicle, deal.buyer] + ([deal.co_buyer] if deal.co_buyer_id else [])
         if any(record.dealership_id != request.member.dealership_id for record in related):
             raise Http404
@@ -43,9 +48,6 @@ def change_state(request, pk):
                 form.add_error(None,'This draft changed. Your reason is preserved; open the latest draft in another tab and review its state before trying again.')
                 status = 409
             else:
-                # Recheck membership inside the write transaction.
-                if not Membership.objects.filter(user=request.user,dealership=deal.dealership,role__in=[Membership.Role.OWNER,Membership.Role.STAFF]).exists():
-                    raise PermissionDenied
                 reason = form.cleaned_data['reason']
                 deal.archived_at = timezone.now() if action=='archive' else None
                 deal.archived_by = request.user if action=='archive' else None

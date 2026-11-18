@@ -30,11 +30,18 @@ Use literal scheduled amounts $100 on February 1, March 1 and April 1 (not the i
 
 ## Implemented controls and verified operation
 
+The implementation descriptions below reflect the current source review. Test
+counts, browser observations, migration state and local evidence paths in this
+document record historical developer runs; they do not verify the current tree
+or establish staff, legal or production approval.
+
 - DemoServicingPlan persists one explicit monthly precomputed source per account, schedule hash, fixed policy version, reason, actor, timestamp and retry key. Book locking and uniqueness prevent competing selections. PostgreSQL/SQLite reject ordinary update/delete and unauthorized/mismatched/non-monthly insertions. No contract amendment workflow is implied.
 - Signed previews are actor/dealership/book/policy bound and expire after 30 minutes. Edit returns to preparation; retries retain the original selection. Viewers cannot select baselines, foreign accounts remain inaccessible, and CSRF is required. The feature uses DEMO_SERVICING_ENABLED plus the existing ledger demo gate; both default off outside DEBUG.
 - Read-only effective-date coverage includes an explicit recorded-through timestamp, rejects pre-opening/future as-of dates, and fails neutral on invalid source/record-limit failures. Opening principal is verified against the retained illustration before projection. Current account views hold the book lock; account lists lock selected book IDs in order, refresh financial facts and bulk-read selected plans/postings. Limits: 600 installments, 10,000 postings per projection, 50,000 postings per list batch. These are computational scope, not statutory limits.
 - Red amounts and labeled badges show Demo past due; amber is Demo due today; green is Demo up to date or Demo schedule covered. Account overview includes the next/oldest unpaid date. Unselected/invalid accounts remain neutral. All figures are expressly synthetic installment coverage, not posted principal/interest allocation.
-- Portable account export v3 preserves the baseline metadata alongside original schedules and journal. Existing export audit rows are unchanged.
+- Portable account export `demo-account-export-v4` preserves baseline metadata
+  alongside original schedules and journal, including the recorded payment method.
+  Previously prepared exports and their audit rows are not rewritten.
 
 Verification: full PostgreSQL suite **350 tests passed in 115.246s**, no skips. Independent literal arithmetic references cover missed/partial/extra/early/full coverage, final cents and excess; effective dates and record captures cover linked reversals. Integration tests cover unchanged principal/unapplied ledger balances, signed preview/edit/retry, immutability, direct insertion guards, scope/permissions, monthly-only selection, source digests, portable baseline metadata, and red list status. Two PostgreSQL concurrency tests verify one selection for the same preview and rejection of competing previews.
 

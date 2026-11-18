@@ -10,7 +10,7 @@ from django.db import transaction
 from django.db.models import Sum
 from django.http import Http404, HttpResponse, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
-from core.access import context, member_view, require_editor
+from core.access import authorized_private_read, context, member_view, require_editor
 from inventory.models import Vehicle, VehicleCostEntry
 from .forms import SupportingFileUploadForm
 from .models import VehicleInvoice, VehicleInvoiceEvent
@@ -90,6 +90,7 @@ def invoices(request, pk):
 
 @private_no_store
 @member_view
+@authorized_private_read
 def download(request, pk, invoice_pk):
     gate()
     if request.method not in ('GET', 'HEAD'):

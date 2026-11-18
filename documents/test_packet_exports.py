@@ -82,6 +82,43 @@ class PacketExportTests(TestCase):
         self.assertEqual(DemoPacketExportEvent.objects.get().actor,self.users['viewer'])
         self.deal.refresh_from_db();self.assertEqual(self.deal.revision,1)
 
+    def test_all_member_roles_can_download_packet_artifact_and_bundle(self):
+        staff = get_user_model().objects.create_user('synthetic-packet-reader-staff')
+        Membership.objects.create(user=staff, dealership=self.dealer, role='staff')
+        artifact = reverse('demo_packet_artifact', args=[self.deal.pk, self.packet.pk])
+        for user in (self.users['owner'], staff, self.users['viewer']):
+            with self.subTest(user=user.pk):
+                self.client.force_login(user)
+                self.assertEqual(self.client.get(artifact).status_code, 200)
+                self.assertEqual(self.client.get(self.url).status_code, 200)
+
+    def test_revoked_membership_cannot_prepare_private_packet_responses(self):
+        select = Membership.objects.select_for_update
+        routes = [reverse('demo_packet_list', args=[self.deal.pk])]
+        routes += [reverse(name, args=[self.deal.pk, self.packet.pk]) for name in
+                   ('demo_packet_detail', 'title_practice', 'paperwork_review', 'finance_practice', 'demo_packet_artifact', 'demo_packet_export')]
+        for revoked in ('inactive', 'foreign', 'removed', 'invalid_role'):
+            for url in routes:
+                with self.subTest(revoked=revoked, url=url):
+                    def revoke():
+                        user = self.users['owner']
+                        if revoked == 'inactive':
+                            get_user_model().objects.filter(pk=user.pk).update(is_active=False)
+                        elif revoked == 'foreign':
+                            Membership.objects.filter(user=user).update(dealership=self.other)
+                        elif revoked == 'removed':
+                            Membership.objects.filter(user=user).delete()
+                        else:
+                            Membership.objects.filter(user=user).update(role='invalid')
+                        return select()
+                    with patch('documents.packet_views.Membership.objects.select_for_update', side_effect=revoke), \
+                         patch('documents.packet_exports.build_bundle', side_effect=AssertionError('Unauthorized bundle preparation')):
+                        response = self.client.get(url)
+                    self.assertEqual(response.status_code, 403)
+                    self.assertNotIn(b'Synthetic summary', response.content)
+                    self.assertIn('no-store', response['Cache-Control'])
+                    self.assertEqual(DemoPacketExportEvent.objects.count(), 0)
+
     def test_integrity_failures_do_not_create_audit_or_export(self):
         DemoDealPacket.objects.filter(pk=self.packet.pk).update(html='tampered')
         self.assertEqual(self.client.get(self.url).status_code,409)

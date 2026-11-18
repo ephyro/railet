@@ -3,6 +3,8 @@
 Scope: local synthetic preview; invented records only. This is a developer
 assessment, not dealership-staff testing, a security audit, legal review or
 production acceptance.
+The walkthrough, findings and test counts below are historical observations;
+they are not a fresh evaluation of the current source or environment.
 
 ## Exercised
 
@@ -37,16 +39,20 @@ production acceptance.
 
 ## Remaining evaluation / product gaps
 
-- Inventory aging now uses optional recorded acquisition dates; older records
-  remain unknown until entered, and sale-date tracking remains outstanding.
-- Customer follow-ups now support assignment, rescheduling and reopening; full
-  timeline pagination and richer queue filters remain. No SignalWire exists.
-- DocuSeal is an offline request builder, not a running signing integration.
+- Inventory aging uses optional recorded acquisition dates. The current source
+  also records optional sale dates and reports missing or inconsistent dates;
+  recorded dates are not verified acquisition or sale evidence.
+- Customer follow-ups support assignment, rescheduling and reopening. Customer
+  activity history is now paginated and the queue can search assignee usernames;
+  richer queue filtering remains open. No live SignalWire integration exists.
+- DocuSeal has offline request and mock transport rehearsals, not a running
+  signing integration.
 - BHPH servicing and due indicators are simulations; real allocation, contracts,
   delinquency, payoff and regulated financial calculations remain unimplemented.
-- Reports do not yet cover sales, aging or full servicing and have no report export.
-  The inventory report now has search, cost/price sorting and totals across matching
-  vehicles; Argon identified these usability gaps.
+- The synthetic inventory investment report now includes recorded-date aging,
+  search, cost/price sorting and totals across matching vehicles. Filtered CSVs
+  exist for investment, reconditioning work and costs, and payment activity;
+  reviewed sales and full servicing/reconciliation reports remain open.
 - Customer queue now allows marking an activity done in place while preserving
   its filter, search and page (Argon review).
 - Full role/isolation, keyboard/screen-reader, restore, concurrency, security and
@@ -66,7 +72,8 @@ Acquired report filter and completing an invented follow-up directly from a
 filtered queue without losing the search. The queue action is role checked,
 CSRF protected, and returns only to its own validated local route.
 
-Investment report follow-up: filtered totals and pagination were verified using
+Historical investment report follow-up: filtered totals and pagination were verified using
 30 synthetic vehicles on SQLite and PostgreSQL; Firefox checked search, sort and
 outer page width at 1440/390/320 pixels. Asking-price totals state how many
-vehicles have a price; acquisition aging and report exports remain unimplemented.
+vehicles have a price. At that time acquisition aging and report exports remained
+unimplemented; their later synthetic implementation is described above.

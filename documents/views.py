@@ -21,7 +21,7 @@ from django.http import (
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
-from core.access import context, member_view, require_editor
+from core.access import authorized_private_read, context, member_view, require_editor
 from deals.models import DraftDeal
 
 from .forms import DealFileActionForm, SupportingFileUploadForm
@@ -300,6 +300,7 @@ def _check_private_reference(record, dealership_id):
 
 @private_no_store
 @member_view
+@authorized_private_read
 def file_download(request, pk, file_pk):
     _gate_closed()
     if request.method not in ("GET", "HEAD"):

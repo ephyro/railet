@@ -4,10 +4,12 @@ from functools import wraps
 from django.conf import settings
 from django.core import signing
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods, require_GET
 from core.access import context, member_view, require_editor
+from core.models import Dealership, Membership
 from deals.models import DraftDeal
 from .models import DemoDealPacket
 from .form_registry import REGISTRY_VERSION, research_inventory
@@ -34,8 +36,26 @@ def private_packet(view):
     return wrapped
 
 
+def packet_authorized(view):
+    """Hold dealership and current member/user authorization through response preparation."""
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        with transaction.atomic():
+            dealership_id = request.member.dealership_id
+            if not Dealership.objects.select_for_update().filter(pk=dealership_id).exists():
+                raise PermissionDenied
+            if not Membership.objects.select_for_update().filter(
+                user_id=request.user.pk, user__is_active=True, dealership_id=dealership_id,
+                role__in=Membership.Role.values,
+            ).exists():
+                raise PermissionDenied
+            return view(request, *args, **kwargs)
+    return wrapped
+
+
 @private_packet
 @member_view
+@packet_authorized
 @require_http_methods(['GET', 'POST'])
 def packet_list(request, pk):
     deal = get_object_or_404(DraftDeal, pk=pk, dealership_id=request.member.dealership_id)
@@ -70,6 +90,7 @@ def packet_list(request, pk):
 
 @private_packet
 @member_view
+@packet_authorized
 @require_GET
 def packet_detail(request, pk, packet_pk):
     packet = get_object_or_404(DemoDealPacket.objects.select_related('created_by'), pk=packet_pk, deal_id=pk, deal__dealership_id=request.member.dealership_id)
@@ -78,6 +99,7 @@ def packet_detail(request, pk, packet_pk):
 
 @private_packet
 @member_view
+@packet_authorized
 @require_GET
 def title_practice(request, pk, packet_pk):
     packet = get_object_or_404(DemoDealPacket, pk=packet_pk, deal_id=pk, deal__dealership_id=request.member.dealership_id)
@@ -88,6 +110,7 @@ def title_practice(request, pk, packet_pk):
 
 @private_packet
 @member_view
+@packet_authorized
 @require_GET
 def paperwork_review(request, pk, packet_pk):
     packet = get_object_or_404(DemoDealPacket, pk=packet_pk, deal_id=pk, deal__dealership_id=request.member.dealership_id)
@@ -98,6 +121,7 @@ def paperwork_review(request, pk, packet_pk):
 
 @private_packet
 @member_view
+@packet_authorized
 @require_GET
 def finance_practice(request, pk, packet_pk):
     packet = get_object_or_404(DemoDealPacket, pk=packet_pk, deal_id=pk, deal__dealership_id=request.member.dealership_id)
@@ -108,6 +132,7 @@ def finance_practice(request, pk, packet_pk):
 
 @private_packet
 @member_view
+@packet_authorized
 @require_http_methods(['GET', 'HEAD'])
 def packet_artifact(request, pk, packet_pk):
     packet = get_object_or_404(DemoDealPacket, pk=packet_pk, deal_id=pk, deal__dealership_id=request.member.dealership_id)

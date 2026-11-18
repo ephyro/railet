@@ -12,7 +12,7 @@ from django.db.models import Prefetch, Sum
 from django.http import Http404, HttpResponse, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from core.access import context, member_view, require_editor
+from core.access import authorized_private_read, context, member_view, require_editor
 from inventory.models import Vehicle
 from .forms import DealFileActionForm, SupportingFileUploadForm
 from .models import VehicleAcquisitionFile, VehicleAcquisitionFileEvent
@@ -291,6 +291,7 @@ def acquisition_file_action(request, pk, file_pk):
 
 @private_no_store
 @member_view
+@authorized_private_read
 def acquisition_file_download(request, pk, file_pk):
     if request.method not in ("GET", "HEAD"):
         return HttpResponseNotAllowed(["GET", "HEAD"])

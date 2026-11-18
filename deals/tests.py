@@ -32,6 +32,39 @@ class DraftWorkflowTests(TestCase):
         self.client.force_login(self.user)
         self.data = {name: "0.00" for name in MONEY_FIELDS}
         self.data.update(vehicle=self.vehicle.pk, buyer=self.buyer.pk, customer_mode="existing", sale_price="10000.10", tax="600.00", down_payment="1000.00", submission_key=str(uuid4()))
+
+    def test_stale_actor_cannot_create_edit_or_retry_drafts(self):
+        from deals.views import _require_locked_editor
+        self.assertEqual(self.client.post(reverse('deal_create'), self.data).status_code, 302)
+        deal = DraftDeal.objects.get()
+        worksheet = {name: str(getattr(deal, name)) for name in MONEY_FIELDS}
+        worksheet.update(revision=deal.revision, notes=deal.notes, deal_type=deal.deal_type)
+        requests = [
+            (reverse('deal_create'), self.data),
+            (reverse('deal_create'), self.data | {'submission_key': str(uuid4())}),
+            (reverse('deal_edit', args=[deal.pk]), self.data | {'revision': deal.revision}),
+            (reverse('deal_detail', args=[deal.pk]), worksheet),
+            (reverse('deal_detail', args=[deal.pk]), worksheet | {'notes': 'Unauthorized change'}),
+        ]
+        before = (DraftDeal.objects.count(), DealEvent.objects.count(), CustomerEvent.objects.count(), Vehicle.objects.count())
+        for revoked in ('inactive', 'viewer', 'foreign', 'removed'):
+            for url, data in requests:
+                with self.subTest(revoked=revoked, url=url):
+                    def revoke(request):
+                        if revoked == 'inactive':
+                            get_user_model().objects.filter(pk=self.user.pk).update(is_active=False)
+                        elif revoked == 'viewer':
+                            Membership.objects.filter(pk=self.member.pk).update(role='viewer')
+                        elif revoked == 'foreign':
+                            Membership.objects.filter(pk=self.member.pk).update(dealership=self.other)
+                        else:
+                            Membership.objects.filter(pk=self.member.pk).delete()
+                        return _require_locked_editor(request)
+                    with patch('deals.views._require_locked_editor', side_effect=revoke):
+                        self.assertEqual(self.client.post(url, data).status_code, 403)
+                    self.assertEqual((DraftDeal.objects.count(), DealEvent.objects.count(), CustomerEvent.objects.count(), Vehicle.objects.count()), before)
+                    deal.refresh_from_db()
+                    self.assertEqual((deal.revision, deal.notes), (1, ''))
     def test_existing_customer_reused_and_decimal_balance(self):
         response = self.client.post(reverse("deal_create"), self.data)
         self.assertEqual(response.status_code, 302)

@@ -4,12 +4,13 @@ from django.core.paginator import Paginator
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from core.access import member_view, context, require_editor
+from core.models import Dealership
 from .forms import CustomerForm
 from .models import Customer
 from .queries import search_customers
 from .filters import SCHEMA
 from core.filter_views import filter_context
-from .services import save_customer
+from .services import require_locked_editor, save_customer
 
 def records(request):
     return Customer.objects.filter(dealership=request.member.dealership)
@@ -51,7 +52,11 @@ def customer_detail(request, pk):
 def editor(request, pk=None):
     require_editor(request)
     with transaction.atomic():
+        if request.method == 'POST':
+            Dealership.objects.select_for_update().get(pk=request.member.dealership_id)
         customer = get_object_or_404(records(request).select_for_update(), pk=pk) if pk else Customer(dealership=request.member.dealership)
+        if request.method == 'POST':
+            require_locked_editor(request.user, request.member.dealership_id)
         form = CustomerForm(request.POST if request.method == "POST" else None, instance=customer, dealership=request.member.dealership)
         status = 200
         if request.method == "POST" and form.is_valid():

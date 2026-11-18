@@ -3,14 +3,16 @@ from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from concurrent.futures import ThreadPoolExecutor
-from threading import Barrier
+from threading import Barrier, Event
+from types import SimpleNamespace
 from unittest import skipUnless
 from unittest.mock import patch
 
 from PIL import Image
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
-from django.db import close_old_connections, connection
+from django.contrib.auth.models import AnonymousUser
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import close_old_connections, connection, transaction
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, TransactionTestCase
 from django.test.utils import CaptureQueriesContext
@@ -19,7 +21,7 @@ from django.utils import timezone
 
 from core.models import AuditEvent, Dealership, Membership
 from .models import Vehicle, VehiclePhoto
-from .photos import MAX_BYTES, normalize_photo, add_photos
+from .photos import MAX_BYTES, normalize_photo, add_photos, change_photo
 
 
 def photo_file(name="vehicle.jpg", color="blue", format="JPEG", exif=None):
@@ -238,6 +240,54 @@ class VehiclePhotoTests(TestCase):
         self.assertFalse(VehiclePhoto.objects.exists())
         self.assertEqual(list(self.media.rglob("*.jpg")), [])
 
+    def test_cleanup_attempts_every_new_blob_without_masking_original_failure(self):
+        existing = self.media / 'vehicles' / 'existing.jpg'
+        existing.parent.mkdir(parents=True, exist_ok=True)
+        existing.write_bytes(b'synthetic existing image')
+        storage = VehiclePhoto._meta.get_field('image').storage
+        thumbnail_storage = VehiclePhoto._meta.get_field('thumbnail').storage
+        delete = storage.delete
+        attempted = []
+        failure = RuntimeError('synthetic original upload failure')
+
+        def delete_with_failure(name):
+            attempted.append(name)
+            if len(attempted) in (1, 3):
+                raise OSError('synthetic private path and provider details')
+            delete(name)
+
+        prepared = [normalize_photo(photo_file()), normalize_photo(photo_file(color='red'))]
+        with patch.object(storage, 'delete', side_effect=delete_with_failure), \
+             patch.object(thumbnail_storage, 'delete', side_effect=delete_with_failure), \
+             patch('inventory.photos.uuid4', return_value=SimpleNamespace(hex='existing')), \
+             patch('inventory.photos.AuditEvent.objects.create', side_effect=failure), \
+             self.assertLogs('inventory.photos', level='ERROR') as logs:
+            with self.assertRaises(RuntimeError) as raised:
+                add_photos(self.vehicle, prepared, actor=self.user)
+        self.assertIs(raised.exception, failure)
+        self.assertEqual(len(attempted), 4)
+        self.assertNotIn('vehicles/existing.jpg', attempted)
+        self.assertEqual(existing.read_bytes(), b'synthetic existing image')
+        self.assertFalse(VehiclePhoto.objects.exists())
+        self.assertEqual(len(list(self.media.rglob('*.jpg'))), 3)
+        self.assertIn('2 newly written vehicle photo blobs', logs.output[0])
+        self.assertNotIn('synthetic private path', logs.output[0])
+        self.assertFalse(any(name in logs.output[0] for name in attempted))
+
+    def test_cleanup_logging_failure_cannot_mask_original_failure(self):
+        storage = VehiclePhoto._meta.get_field('image').storage
+        thumbnail_storage = VehiclePhoto._meta.get_field('thumbnail').storage
+        failure = RuntimeError('synthetic original upload failure')
+        with patch.object(storage, 'delete', side_effect=OSError('synthetic cleanup failure')) as delete_image, \
+             patch.object(thumbnail_storage, 'delete', side_effect=OSError('synthetic cleanup failure')) as delete_thumbnail, \
+             patch('inventory.photos.logger.error', side_effect=RuntimeError('synthetic logging failure')), \
+             patch('inventory.photos.AuditEvent.objects.create', side_effect=failure):
+            with self.assertRaises(RuntimeError) as raised:
+                add_photos(self.vehicle, [normalize_photo(photo_file())], actor=self.user)
+        self.assertIs(raised.exception, failure)
+        self.assertEqual((delete_image.call_count, delete_thumbnail.call_count), (1, 1))
+        self.assertFalse(VehiclePhoto.objects.exists())
+
     def test_has_photo_filter_and_stock_vin_picker_identity(self):
         self.upload()
         page = self.client.get(reverse("inventory"), {"filter_field": "photos", "filter_op": "eq", "filter_value": "true"})
@@ -258,6 +308,150 @@ class VehiclePhotoTests(TestCase):
         self.assertEqual(sum('FROM "inventory_vehiclephoto"' in query["sql"] for query in captured), 1)
 
 
+    def test_state_changes_recheck_actor_even_for_no_op_cover(self):
+        self.actor = self.user
+        self.membership = Membership.objects.get(user=self.actor)
+        self.prepared = [normalize_photo(photo_file())]
+        primary, hidden = add_photos(self.vehicle, self.prepared * 2, actor=self.actor)
+        change_photo(hidden, 'hide', actor=self.actor)
+        before = list(VehiclePhoto.objects.order_by('pk').values_list('pk', 'archived_at', 'is_primary'))
+        event_count = AuditEvent.objects.count()
+        for change in ('inactive', 'viewer', 'foreign', 'revoked', 'anonymous'):
+            with self.subTest(change=change):
+                if change == 'inactive':
+                    get_user_model().objects.filter(pk=self.actor.pk).update(is_active=False)
+                elif change == 'viewer':
+                    Membership.objects.filter(pk=self.membership.pk).update(role=Membership.Role.VIEWER)
+                elif change == 'foreign':
+                    Membership.objects.filter(pk=self.membership.pk).update(dealership=self.other)
+                elif change == 'revoked':
+                    Membership.objects.filter(pk=self.membership.pk).delete()
+                actor = AnonymousUser() if change == 'anonymous' else self.actor
+                for photo, action in ((primary, 'hide'), (primary, 'cover'), (hidden, 'restore')):
+                    with self.assertRaises(PermissionDenied):
+                        change_photo(photo, action, actor=actor)
+                self.assertEqual(list(VehiclePhoto.objects.order_by('pk').values_list('pk', 'archived_at', 'is_primary')), before)
+                self.assertEqual(AuditEvent.objects.count(), event_count)
+                get_user_model().objects.filter(pk=self.actor.pk).update(is_active=True)
+                self.membership, _ = Membership.objects.update_or_create(
+                    user=self.actor, defaults={'dealership': self.dealer, 'role': Membership.Role.OWNER})
+
+
+class PhotoUploadTransactionTests(TransactionTestCase):
+    def setUp(self):
+        temporary = TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.media = Path(temporary.name)
+        override = self.settings(MEDIA_ROOT=self.media)
+        override.enable()
+        self.addCleanup(override.disable)
+        self.dealer = Dealership.objects.create(name="Synthetic transaction dealer")
+        self.other = Dealership.objects.create(name="Synthetic other dealer")
+        self.actor = get_user_model().objects.create_user(username="transaction-photo-owner")
+        self.membership = Membership.objects.create(user=self.actor, dealership=self.dealer, role=Membership.Role.OWNER)
+        self.vehicle = Vehicle.objects.create(dealership=self.dealer, stock_number="PHOTO-TX", year=2020, make="Synthetic", model="Car")
+        self.prepared = [normalize_photo(photo_file())]
+
+    def assert_no_upload(self):
+        self.assertFalse(VehiclePhoto.objects.exists())
+        self.assertFalse(AuditEvent.objects.exists())
+        self.assertFalse(list(self.media.rglob('*.jpg')))
+
+    def test_rechecks_actor_and_membership_from_database(self):
+        for change in ('inactive', 'viewer', 'foreign', 'revoked'):
+            with self.subTest(change=change):
+                if change == 'inactive':
+                    get_user_model().objects.filter(pk=self.actor.pk).update(is_active=False)
+                elif change == 'viewer':
+                    Membership.objects.filter(pk=self.membership.pk).update(role=Membership.Role.VIEWER)
+                elif change == 'foreign':
+                    Membership.objects.filter(pk=self.membership.pk).update(dealership=self.other)
+                else:
+                    Membership.objects.filter(pk=self.membership.pk).delete()
+                with self.assertRaises(PermissionDenied):
+                    add_photos(self.vehicle, self.prepared, actor=self.actor)
+                self.assert_no_upload()
+                get_user_model().objects.filter(pk=self.actor.pk).update(is_active=True)
+                self.membership, _ = Membership.objects.update_or_create(
+                    user=self.actor, defaults={'dealership': self.dealer, 'role': Membership.Role.OWNER})
+
+    def test_outer_transaction_is_rejected_before_writes(self):
+        with transaction.atomic():
+            with self.assertRaises(RuntimeError):
+                add_photos(self.vehicle, self.prepared, actor=self.actor)
+        self.assert_no_upload()
+
+    @skipUnless(connection.vendor == 'postgresql', 'Row locking requires PostgreSQL')
+    def test_state_change_rechecks_role_and_activity_after_lock_wait(self):
+        photo = add_photos(self.vehicle, self.prepared, actor=self.actor)[0]
+        event_count = AuditEvent.objects.count()
+        for revoked in ('role', 'active'):
+            with self.subTest(revoked=revoked):
+                attempted = Event()
+
+                def mutate():
+                    close_old_connections()
+                    try:
+                        def signal_lock(execute, sql, params, many, context):
+                            if 'core_dealership' in sql and 'FOR UPDATE' in sql:
+                                attempted.set()
+                            return execute(sql, params, many, context)
+                        with connection.execute_wrapper(signal_lock):
+                            try:
+                                change_photo(photo, 'hide', actor=self.actor)
+                            except PermissionDenied:
+                                return 'denied'
+                            return 'changed'
+                    finally:
+                        close_old_connections()
+
+                with ThreadPoolExecutor(max_workers=1) as pool:
+                    with transaction.atomic():
+                        Dealership.objects.select_for_update().get(pk=self.dealer.pk)
+                        future = pool.submit(mutate)
+                        self.assertTrue(attempted.wait(timeout=20))
+                        if revoked == 'role':
+                            Membership.objects.filter(pk=self.membership.pk).update(role=Membership.Role.VIEWER)
+                        else:
+                            get_user_model().objects.filter(pk=self.actor.pk).update(is_active=False)
+                    self.assertEqual(future.result(timeout=20), 'denied')
+                photo.refresh_from_db()
+                self.assertIsNone(photo.archived_at)
+                self.assertTrue(photo.is_primary)
+                self.assertEqual(AuditEvent.objects.count(), event_count)
+                Membership.objects.filter(pk=self.membership.pk).update(role=Membership.Role.OWNER)
+                get_user_model().objects.filter(pk=self.actor.pk).update(is_active=True)
+
+    @skipUnless(connection.vendor == 'postgresql', 'Row locking requires PostgreSQL')
+    def test_rechecks_membership_after_waiting_for_dealership_lock(self):
+        attempted = Event()
+
+        def upload():
+            close_old_connections()
+            try:
+                def signal_lock(execute, sql, params, many, context):
+                    if 'core_dealership' in sql and 'FOR UPDATE' in sql:
+                        attempted.set()
+                    return execute(sql, params, many, context)
+                with connection.execute_wrapper(signal_lock):
+                    try:
+                        add_photos(self.vehicle, self.prepared, actor=self.actor)
+                    except PermissionDenied:
+                        return 'denied'
+                    return 'added'
+            finally:
+                close_old_connections()
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            with transaction.atomic():
+                Dealership.objects.select_for_update().get(pk=self.dealer.pk)
+                future = pool.submit(upload)
+                self.assertTrue(attempted.wait(timeout=20))
+                Membership.objects.filter(pk=self.membership.pk).update(role=Membership.Role.VIEWER)
+            self.assertEqual(future.result(timeout=20), 'denied')
+        self.assert_no_upload()
+
+
 @skipUnless(connection.vendor == "postgresql", "Concurrent photo limit verification requires PostgreSQL")
 class ConcurrentPhotoLimitTests(TransactionTestCase):
     def test_simultaneous_uploads_obey_the_per_vehicle_limit(self):
@@ -268,6 +462,7 @@ class ConcurrentPhotoLimitTests(TransactionTestCase):
         self.addCleanup(override.disable)
         dealer = Dealership.objects.create(name="Synthetic concurrent photo dealer")
         actor = get_user_model().objects.create_user(username="concurrent-photo-owner")
+        Membership.objects.create(user=actor, dealership=dealer, role=Membership.Role.OWNER)
         vehicle = Vehicle.objects.create(dealership=dealer, stock_number="PHOTO-LIMIT", year=2020, make="Synthetic", model="Car")
         VehiclePhoto.objects.bulk_create([VehiclePhoto(vehicle=vehicle, created_by=actor, image=f"synthetic/{index}.jpg", thumbnail=f"synthetic/{index}-thumb.jpg", is_primary=index == 0) for index in range(23)])
         prepared = [normalize_photo(photo_file())]

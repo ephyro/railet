@@ -63,6 +63,11 @@ class Customer(models.Model):
         return f"{self.first_name} {self.last_name}"
 
 class CustomerEvent(models.Model):
+    """Customer history protected from ordinary database updates and deletes.
+
+    SQLite table rebuilds must restore the guards; privileged database access
+    and PostgreSQL TRUNCATE can bypass row-level triggers.
+    """
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name="events")
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     changes = models.JSONField()

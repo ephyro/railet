@@ -2,6 +2,8 @@
 
 Developer walkthrough, November 3, 2026. This is not staff usability validation,
 legal review, or authorization to use real dealership records.
+The walkthrough, screen observations and test results below record that review;
+they are not fresh verification of the current implementation.
 
 ## Journey exercised
 
@@ -16,15 +18,15 @@ preview/confirmation screens, and recorded a synthetic payment. The account
 opening and receipt postings were checked in the test database. The account's
 opening amount was explicitly entered; it was not carried over as real debt.
 
-The completion warning now identifies the missing financing fields. The deal
-workspace no longer suggests that optional demo account setup is the mandatory
+The completion warning was updated to identify the missing financing fields. The deal
+workspace was changed so it no longer suggested optional demo account setup was the mandatory
 next step before review. Screens in this handoff were checked at 1440 and 390
 pixels; this does not establish usability for all screen sizes or assistive
 technologies. The test data deliberately included incomplete title and trade
 facts, and the rehearsal retained its reminders.
 
 An independent review improved the saved-rehearsal handoff and made the packet
-link easier to find. Existing accounts are identified as potentially based on an
+link easier to find. Existing accounts were identified as potentially based on an
 earlier draft, because their saved context need not match the frozen rehearsal.
 The handoff and packet link were rechecked at 1440, 390 and 320 pixels. The
 completion, review, packet, packet-export and completed-account test suites

@@ -1,20 +1,22 @@
 # SPDX-License-Identifier: MPL-2.0
 from io import BytesIO
+import logging
 from uuid import uuid4
 import warnings
 
 from PIL import Image, ImageOps, UnidentifiedImageError
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.utils import timezone
 
-from core.models import AuditEvent
+from core.models import AuditEvent, Dealership, Membership
 from .models import Vehicle, VehiclePhoto
 
 MAX_BYTES = 8 * 1024 * 1024
 MAX_PIXELS = 40_000_000
 MAX_PHOTOS = 24
+logger = logging.getLogger(__name__)
 
 
 def normalize_photo(upload):
@@ -61,11 +63,25 @@ def normalize_photo(upload):
         raise ValidationError("This file could not be read as a photo. Choose a valid JPEG, PNG, or WebP image.") from error
 
 
+def _require_locked_editor(actor, dealership_id):
+    if not getattr(actor, 'is_authenticated', False) or not getattr(actor, 'pk', None):
+        raise PermissionDenied
+    if not Membership.objects.select_for_update().filter(
+        user_id=actor.pk, user__is_active=True, dealership_id=dealership_id,
+        role__in=[Membership.Role.OWNER, Membership.Role.STAFF],
+    ).exists():
+        raise PermissionDenied
+
+
 def add_photos(vehicle, prepared, *, actor):
     written = []
     try:
-        with transaction.atomic():
-            vehicle = Vehicle.objects.select_for_update().get(pk=vehicle.pk, dealership=vehicle.dealership)
+        # An outer rollback would otherwise leave successfully written files orphaned.
+        with transaction.atomic(durable=True):
+            dealership_id = vehicle.dealership_id
+            Dealership.objects.select_for_update().get(pk=dealership_id)
+            vehicle = Vehicle.objects.select_for_update().get(pk=vehicle.pk, dealership_id=dealership_id)
+            _require_locked_editor(actor, dealership_id)
             active = vehicle.photos.filter(archived_at__isnull=True)
             count = active.count()
             if count + len(prepared) > MAX_PHOTOS:
@@ -81,16 +97,28 @@ def add_photos(vehicle, prepared, *, actor):
                 photos.append(photo)
             AuditEvent.objects.create(dealership=vehicle.dealership, actor=actor, vehicle=vehicle, action="added photos to", changes={"photos": {"before": "", "after": [photo.pk for photo in photos]}})
             return photos
-    except Exception:
+    except BaseException:
+        cleanup_failures = 0
         for storage, name in written:
-            storage.delete(name)
+            try:
+                storage.delete(name)
+            except BaseException:
+                cleanup_failures += 1
+        if cleanup_failures:
+            try:
+                logger.error("Failed to clean up %d newly written vehicle photo blobs after an upload failure.", cleanup_failures)
+            except BaseException:
+                pass
         raise
 
 
 @transaction.atomic
 def change_photo(photo, action, *, actor):
-    vehicle = Vehicle.objects.select_for_update().get(pk=photo.vehicle_id)
-    photo = vehicle.photos.get(pk=photo.pk)
+    dealership_id = Vehicle.objects.values_list('dealership_id', flat=True).get(pk=photo.vehicle_id)
+    Dealership.objects.select_for_update().get(pk=dealership_id)
+    vehicle = Vehicle.objects.select_for_update().get(pk=photo.vehicle_id, dealership_id=dealership_id)
+    _require_locked_editor(actor, dealership_id)
+    photo = vehicle.photos.select_for_update().get(pk=photo.pk)
     if action == "cover" and photo.archived_at is None:
         if photo.is_primary:
             return

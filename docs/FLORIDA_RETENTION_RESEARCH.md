@@ -198,6 +198,34 @@ append-only hold history needs DB guards plus privilege and tamper-evidence revi
   failed-upload cleanup and unrelated application deletion paths are not certified
   hold-aware; inspect them before implementing preservation enforcement.
 
+### Existing removal and cleanup inventory
+
+On November 15, 2026, a static source review identified these paths; none consults
+an operational legal hold. The offline rehearsal below does not protect records.
+
+- `core/filter_views.py` physically deletes a user's dealership-scoped saved view
+  on request. Its name and filter parameters can contain user-entered text, and
+  personal saved views are excluded from the synthetic dealership export.
+- Draft-deal archival, trade removal, inventory-photo hiding and deal/acquisition
+  file archival update retained records rather than deleting their files. They can
+  change which records are visible or current, and are not hold-enforcement controls.
+- `inventory/photos.py` and the document upload services attempt to delete newly
+  written blobs after failed uploads. These paths do not check holds. Cleanup can
+  itself fail. Photo uploads reject outer transactions so a later outer rollback
+  cannot silently orphan successfully written files. These paths are not scheduled
+  retention or disposal workflows.
+- `dev/restore_exercise.py` creates and cleans up its own disposable synthetic
+  PostgreSQL cluster and media workspace. It retains the workspace if it cannot
+  confirm the cluster stopped; abrupt termination may also leave it behind.
+  `dev/restore_fixture.py` exercises database guards only in that isolated setup.
+
+This inventory covered application source, project management commands, storage
+helpers and the restore exercise, not an operational environment. Built-in or
+third-party commands, direct database/storage administration, external lifecycle
+rules, backups and provider copies were not verified. Existing foreign-key and
+audit guards are not a general hold system. Reassess these paths and all copies
+before relying on preservation enforcement; no disposal schedule is established.
+
 ### Acceptance and release gates (outstanding)
 
 The offline `core/hold_rehearsal.py` now models invented identifiers, overlapping
@@ -206,7 +234,8 @@ in-memory values. Explicit `enabled=True` is required for each operation. A clea
 hold check is only a prompt for further review, never disposal eligibility; the
 module has no database, application endpoint, deletion or retention calculation.
 It does not implement legal-review roles, written decisions, persistence or access
-controls. Three synthetic developer tests cover its state rules; this is not legal
+controls. Five synthetic developer tests cover its state rules and structural
+input validation; this is not legal
 review or operational validation.
 
 The operational design remains unimplemented; there are no persistent hold models, permissions, clocks

@@ -10,7 +10,7 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.http import require_GET
-from core.access import member_view,context
+from core.access import authorized_private_export,member_view,context
 from .models import DemoPosting
 from .views import demo_page,money
 
@@ -102,6 +102,12 @@ def csv_response(entries, *, basis, start, end):
 @member_view
 @require_GET
 def register(request):
+    if request.GET.get('format') == 'csv':
+        return authorized_private_export(_register)(request)
+    return _register(request)
+
+
+def _register(request):
     today=timezone.localdate().isoformat();params=request.GET.copy()
     for key,value in (('basis','recorded'),('start',today),('end',today)):params.setdefault(key,value)
     form=RegisterForm(params);entries=[];totals=None

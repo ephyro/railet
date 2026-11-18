@@ -35,6 +35,67 @@ class ReconTests(TestCase):
         data={'title': 'Replace tires', 'request_key': uuid4(), 'new_vendor': 'Practice Garage', **changes}
         return add_task(vehicle_id=self.vehicle.pk, dealership=self.dealer, actor=self.user, data=data)
 
+    def test_revoked_actor_cannot_mutate_or_retry_reconditioning(self):
+        vendor_data = {'name': 'Synthetic vendor'}
+        vendor = save_vendor(dealership=self.dealer, actor=self.user, data=vendor_data)
+        task_data = {'title': 'Synthetic work', 'request_key': uuid4()}
+        task = add_task(vehicle_id=self.vehicle.pk, dealership=self.dealer, actor=self.user, data=task_data)
+        cost_data = self.data()
+        cost = self.cost(cost_data)
+        reversal_args = dict(vehicle_id=self.vehicle.pk, dealership=self.dealer, actor=self.user, entry_id=cost.pk, reason='Synthetic correction', request_key=uuid4())
+        reverse_cost(**reversal_args)
+        common = dict(vehicle_id=self.vehicle.pk, dealership=self.dealer, actor=self.user)
+        attempts = [
+            lambda: save_vendor(dealership=self.dealer, actor=self.user, data=vendor_data),
+            lambda: save_vendor(dealership=self.dealer, actor=self.user, vendor_id=vendor.pk, data=vendor_data | {'revision': vendor.revision}),
+            lambda: add_task(**common, data=task_data),
+            lambda: edit_task(**common, task_id=task.pk, data={'revision': task.revision, 'title': task.title}),
+            lambda: change_task(**common, task_id=task.pk, revision=task.revision, status=task.status),
+            lambda: add_cost(**common, data=cost_data),
+            lambda: reverse_cost(**reversal_args),
+        ]
+        counts = (AuditEvent.objects.count(), VehicleVendorEvent.objects.count(), ReconTask.objects.count(), VehicleCostEntry.objects.count())
+        for change in ('inactive', 'viewer', 'foreign', 'revoked'):
+            with self.subTest(change=change):
+                if change == 'inactive':
+                    get_user_model().objects.filter(pk=self.user.pk).update(is_active=False)
+                elif change == 'viewer':
+                    Membership.objects.filter(pk=self.member.pk).update(role='viewer')
+                elif change == 'foreign':
+                    Membership.objects.filter(pk=self.member.pk).update(dealership=self.other)
+                else:
+                    Membership.objects.filter(pk=self.member.pk).delete()
+                for attempt in attempts:
+                    with self.assertRaises(PermissionDenied):
+                        attempt()
+                self.assertEqual((AuditEvent.objects.count(), VehicleVendorEvent.objects.count(), ReconTask.objects.count(), VehicleCostEntry.objects.count()), counts)
+                get_user_model().objects.filter(pk=self.user.pk).update(is_active=True)
+                self.member, _ = Membership.objects.update_or_create(user=self.user, defaults={'dealership': self.dealer, 'role': 'staff'})
+
+    def test_revoked_assignee_is_rechecked_on_task_retry_and_edit(self):
+        assignee = get_user_model().objects.create_user(username='synthetic-assignee')
+        member = Membership.objects.create(user=assignee, dealership=self.dealer, role='staff')
+        data = {'title': 'Synthetic work', 'request_key': uuid4(), 'assigned_to': assignee}
+        task = add_task(vehicle_id=self.vehicle.pk, dealership=self.dealer, actor=self.user, data=data)
+        for change in ('inactive', 'viewer', 'foreign', 'revoked'):
+            with self.subTest(change=change):
+                if change == 'inactive':
+                    get_user_model().objects.filter(pk=assignee.pk).update(is_active=False)
+                elif change == 'viewer':
+                    Membership.objects.filter(pk=member.pk).update(role='viewer')
+                elif change == 'foreign':
+                    Membership.objects.filter(pk=member.pk).update(dealership=self.other)
+                else:
+                    Membership.objects.filter(pk=member.pk).delete()
+                with self.assertRaises(ValidationError):
+                    add_task(vehicle_id=self.vehicle.pk, dealership=self.dealer, actor=self.user, data=data)
+                with self.assertRaises(ValidationError):
+                    edit_task(vehicle_id=self.vehicle.pk, dealership=self.dealer, actor=self.user, task_id=task.pk,
+                              data={'revision': task.revision, 'title': task.title, 'assigned_to': assignee})
+                self.assertEqual(AuditEvent.objects.filter(vehicle=self.vehicle).count(), 1)
+                get_user_model().objects.filter(pk=assignee.pk).update(is_active=True)
+                member, _ = Membership.objects.update_or_create(user=assignee, defaults={'dealership': self.dealer, 'role': 'staff'})
+
     def test_existing_costs_unchanged_and_independent_reference_total(self):
         self.assertEqual(self.vehicle.total_cost, Decimal('5100.30'))
         self.cost()

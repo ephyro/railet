@@ -93,7 +93,7 @@ def preview(*, dealership_id, deal_id):
 def complete(*, dealership_id, deal_id, actor, creation_key, expected_review, review_notes='', reviewed=False, demo_confirmed=False):
     check_gate()
     Dealership.objects.select_for_update().get(pk=dealership_id)
-    if not Membership.objects.select_for_update().filter(user=actor,dealership_id=dealership_id,role__in=['owner','staff']).exists():
+    if not getattr(actor, 'is_authenticated', False) or not getattr(actor, 'pk', None) or not Membership.objects.select_for_update().filter(user_id=actor.pk,user__is_active=True,dealership_id=dealership_id,role__in=['owner','staff']).exists():
         raise PermissionDenied
     prior=DemoDealCompletion.objects.filter(deal_id=deal_id,deal__dealership_id=dealership_id).first()
     if prior:

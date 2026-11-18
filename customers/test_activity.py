@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: MPL-2.0
 from unittest.mock import patch
+from importlib import import_module
 from uuid import uuid4
 from django.contrib.auth import get_user_model
+from django.db import DatabaseError, connection, transaction
 from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from core.models import Dealership, Membership
@@ -39,6 +41,114 @@ class CustomerActivityTests(TestCase):
         self.assertContains(response,'Completed activity #')
         self.assertContains(response,'Added follow-up')
 
+    def test_customer_events_reject_database_update_and_delete(self):
+        if connection.vendor not in ('sqlite', 'postgresql'):
+            self.skipTest('Customer event guards support SQLite and PostgreSQL.')
+        self.assertEqual(self.client.post(self.url, self.data).status_code, 302)
+        activity = CustomerActivity.objects.get(customer=self.customer)
+        self.assertEqual(self.client.post(reverse('customer_activity_complete', args=[self.customer.pk, activity.pk]), {'revision': 1}).status_code, 302)
+        events = list(CustomerEvent.objects.filter(customer=self.customer).order_by('pk').values())
+        self.assertEqual([row['changes']['action'] for row in events], ['activity_created', 'activity_completed'])
+        event_id = events[0]['id']
+
+        def raw(sql):
+            with connection.cursor() as cursor:
+                cursor.execute(sql, [event_id])
+
+        operations = (
+            lambda: CustomerEvent.objects.filter(pk=event_id).update(changes={'synthetic': 'changed'}),
+            lambda: CustomerEvent.objects.filter(pk=event_id).delete(),
+            lambda: raw("UPDATE customers_customerevent SET changes = '{}' WHERE id = %s"),
+            lambda: raw('DELETE FROM customers_customerevent WHERE id = %s'),
+        )
+        for operation in operations:
+            with self.subTest(operation=operation), self.assertRaisesRegex(DatabaseError, 'Customer events are immutable'), transaction.atomic():
+                operation()
+        self.assertEqual(list(CustomerEvent.objects.filter(customer=self.customer).order_by('pk').values()), events)
+        self.assertEqual(self.client.get(reverse('customer_detail', args=[self.customer.pk])).status_code, 200)
+
+    def test_customer_event_guard_migration_reverses_and_reapplies_without_losing_rows(self):
+        if connection.vendor not in ('sqlite', 'postgresql'):
+            self.skipTest('Customer event guards support SQLite and PostgreSQL.')
+        self.assertEqual(self.client.post(self.url, self.data).status_code, 302)
+        event = CustomerEvent.objects.get(customer=self.customer)
+        migration = import_module('customers.migrations.0010_customer_event_immutable')
+
+        class Editor:
+            def __init__(self, db):
+                self.connection = db
+
+            def execute(self, sql):
+                with self.connection.cursor() as cursor:
+                    cursor.execute(sql)
+
+        editor = Editor(connection)
+        migration.backward(None, editor)
+        try:
+            self.assertEqual(CustomerEvent.objects.filter(pk=event.pk).update(changes={'synthetic': 'retained'}), 1)
+        finally:
+            migration.forward(None, editor)
+        self.assertEqual(CustomerEvent.objects.get(pk=event.pk).changes, {'synthetic': 'retained'})
+        with self.assertRaisesRegex(DatabaseError, 'Customer events are immutable'), transaction.atomic():
+            CustomerEvent.objects.filter(pk=event.pk).delete()
+
+    def test_actor_revoked_after_request_checks_cannot_mutate_or_retry(self):
+        from .activity import _require_locked_editor
+        self.client.post(self.url, self.data)
+        activity = CustomerActivity.objects.get(customer=self.customer)
+        edit = reverse('customer_activity_edit', args=[self.customer.pk, activity.pk])
+        complete = reverse('customer_activity_complete', args=[self.customer.pk, activity.pk])
+        requests = [(self.url, self.data),
+                    (edit, {'detail': activity.detail, 'due_at': '', 'assigned_to': '', 'revision': 1}),
+                    (complete, {'revision': 1})]
+        for revoked in ('inactive', 'viewer', 'foreign', 'removed'):
+            for url, data in requests:
+                with self.subTest(revoked=revoked, url=url):
+                    def revoke(user, dealership_id):
+                        if revoked == 'inactive':
+                            get_user_model().objects.filter(pk=user.pk).update(is_active=False)
+                        elif revoked == 'removed':
+                            Membership.objects.filter(user=user).delete()
+                        elif revoked == 'viewer':
+                            Membership.objects.filter(user=user).update(role='viewer')
+                        else:
+                            Membership.objects.filter(user=user).update(dealership=self.other)
+                        return _require_locked_editor(user, dealership_id)
+                    with patch('customers.activity._require_locked_editor', side_effect=revoke):
+                        self.assertEqual(self.client.post(url, data).status_code, 403)
+                    self.assertEqual(CustomerActivity.objects.count(), 1)
+                    self.assertEqual(CustomerEvent.objects.count(), 1)
+                    activity.refresh_from_db()
+                    self.assertEqual((activity.revision, activity.completed_at, activity.detail), (1, None, 'Practice callback'))
+
+    def test_assignee_revoked_after_form_validation_cannot_be_assigned_or_retried(self):
+        from .activity import _locked_editor
+        assignee = get_user_model().objects.create_user('synthetic-activity-assignee')
+        Membership.objects.create(user=assignee, dealership=self.dealer, role='staff')
+        data = self.data | {'assigned_to': assignee.pk}
+        self.assertEqual(self.client.post(self.url, data).status_code, 302)
+        activity = CustomerActivity.objects.get(customer=self.customer)
+        edit = reverse('customer_activity_edit', args=[self.customer.pk, activity.pk])
+        for revoked in ('inactive', 'viewer', 'foreign', 'removed'):
+            for url, payload in ((self.url, data), (edit, {'detail': activity.detail, 'due_at': '', 'assigned_to': assignee.pk, 'revision': 1})):
+                with self.subTest(revoked=revoked, url=url):
+                    def revoke(user, dealership_id):
+                        if user.pk == assignee.pk:
+                            if revoked == 'inactive':
+                                get_user_model().objects.filter(pk=user.pk).update(is_active=False)
+                            elif revoked == 'removed':
+                                Membership.objects.filter(user=user).delete()
+                            elif revoked == 'viewer':
+                                Membership.objects.filter(user=user).update(role='viewer')
+                            else:
+                                Membership.objects.filter(user=user).update(dealership=self.other)
+                        return _locked_editor(user, dealership_id)
+                    with patch('customers.activity._locked_editor', side_effect=revoke):
+                        self.assertEqual(self.client.post(url, payload).status_code, 409)
+                    self.assertEqual(CustomerActivity.objects.count(), 1)
+                    self.assertEqual(CustomerEvent.objects.count(), 1)
+                    get_user_model().objects.filter(pk=assignee.pk).update(is_active=True)
+                    Membership.objects.update_or_create(user=assignee, defaults={'dealership': self.dealer, 'role': 'staff'})
     def test_permissions_isolation_csrf_and_gate(self):
         self.assertEqual(self.client.post(reverse('customer_activity_create',args=[self.foreign.pk]),self.data).status_code,404)
         self.client.force_login(self.viewer);self.assertEqual(self.client.post(self.url,self.data).status_code,403)

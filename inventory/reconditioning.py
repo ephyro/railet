@@ -21,12 +21,21 @@ def _lock(*, vehicle_id, dealership, actor):
     if not getattr(settings, 'RECON_DEMO_ENABLED', False):
         raise PermissionDenied('Vehicle work and cost rehearsal is disabled.')
     Dealership.objects.select_for_update().get(pk=dealership.pk)
-    if not Membership.objects.filter(user=actor, dealership=dealership, role__in=['owner', 'staff']).exists():
-        raise PermissionDenied('Inventory changes require an owner or inventory staff role.')
     try:
-        return Vehicle.objects.select_for_update().get(pk=vehicle_id, dealership=dealership)
+        vehicle = Vehicle.objects.select_for_update().get(pk=vehicle_id, dealership=dealership)
     except Vehicle.DoesNotExist:
         raise ValidationError('Choose a vehicle from this dealership.')
+    _require_editor(dealership, actor)
+    return vehicle
+
+
+def _require_editor(dealership, actor):
+    if not getattr(actor, 'is_authenticated', False) or not getattr(actor, 'pk', None):
+        raise PermissionDenied('Inventory changes require an owner or inventory staff role.')
+    if not Membership.objects.select_for_update().filter(
+        user_id=actor.pk, user__is_active=True, dealership=dealership, role__in=['owner', 'staff'],
+    ).exists():
+        raise PermissionDenied('Inventory changes require an owner or inventory staff role.')
 
 
 def _vendor(dealership, actor, vendor, new_vendor):
@@ -55,8 +64,9 @@ def save_vendor(*, dealership, actor, data, vendor_id=None):
     if not getattr(settings, 'RECON_DEMO_ENABLED', False):
         raise PermissionDenied('Vehicle work and cost rehearsal is disabled.')
     Dealership.objects.select_for_update().get(pk=dealership.pk)
-    if not Membership.objects.filter(user=actor, dealership=dealership, role__in=['owner', 'staff']).exists():
-        raise PermissionDenied('Inventory changes require an owner or inventory staff role.')
+    vendor = (VehicleVendor.objects.select_for_update().get(pk=vendor_id, dealership=dealership)
+              if vendor_id is not None else None)
+    _require_editor(dealership, actor)
     name = ' '.join(data.get('name', '').split())
     normalized = name.casefold()
     if not name or len(normalized) > 120 or len(name) > 120:
@@ -80,7 +90,6 @@ def save_vendor(*, dealership, actor, data, vendor_id=None):
         })
         return vendor
 
-    vendor = VehicleVendor.objects.select_for_update().get(pk=vendor_id, dealership=dealership)
     if data.get('revision') != vendor.revision:
         raise ValidationError('This vendor changed while you were editing. Your entries are preserved; compare with the latest vendor record before saving again.')
     if VehicleVendor.objects.filter(dealership=dealership, normalized_name=normalized).exclude(pk=vendor.pk).exists():
@@ -117,7 +126,7 @@ def _same_vendor(entry, data):
 def _assignee(dealership, assignee):
     if assignee is None:
         return None
-    if not Membership.objects.filter(user=assignee, user__is_active=True, dealership=dealership, role__in=['owner', 'staff']).exists():
+    if not getattr(assignee, 'pk', None) or not Membership.objects.select_for_update().filter(user_id=assignee.pk, user__is_active=True, dealership=dealership, role__in=['owner', 'staff']).exists():
         raise ValidationError('Choose a current staff member from this dealership.')
     return assignee
 

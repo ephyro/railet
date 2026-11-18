@@ -2,6 +2,8 @@
 
 Developer evaluation, November 2026, using the local synthetic preview. This is
 not a substitute for observation of dealership staff who have not seen Railet.
+The walkthrough and verification below record that historical review, not a new
+browser check or a claim that current staff workflows have been validated.
 
 ## Walkthrough and changes
 
@@ -47,7 +49,8 @@ the phone layouts no longer require horizontal scrolling to read its figures.
 - Have someone unfamiliar with Railet locate a customer, add an appointment,
   start a deal and record a synthetic BHPH payment without coaching; record where
   they hesitate and compare against this assessment.
-- The customer follow-up queue does not yet have a quick assignment filter.
+- The customer follow-up queue supports searching by assignee username, but
+  does not yet have a dedicated quick assignment filter.
 - The BHPH page is still a dense list when many accounts exist; test grouping,
   useful default ordering and terminology with staff before changing it.
 - On mobile, the new-deal form remains long because it contains financing and tax

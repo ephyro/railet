@@ -38,6 +38,19 @@ class CompletionTests(TestCase):
     def args(self,**changes):
         return dict(dealership_id=self.dealer.pk,deal_id=self.deal.pk,actor=self.user,creation_key=uuid4(),expected_review=self.source()['review_sha256'],review_notes='Invented workflow; title and mileage reminders retained for review.',reviewed=True,demo_confirmed=True,**changes)
     def finish(self):return complete(**self.args())
+
+    def test_inactive_actor_cannot_complete_or_retry(self):
+        args = self.args()
+        get_user_model().objects.filter(pk=self.user.pk).update(is_active=False)
+        with self.assertRaises(PermissionDenied):
+            complete(**args)
+        self.assertEqual((DemoDealCompletion.objects.count(), DemoDealPacket.objects.count(), DealEvent.objects.count()), (0, 0, 0))
+        get_user_model().objects.filter(pk=self.user.pk).update(is_active=True)
+        complete(**args)
+        get_user_model().objects.filter(pk=self.user.pk).update(is_active=False)
+        with self.assertRaises(PermissionDenied):
+            complete(**args)
+        self.assertEqual((DemoDealCompletion.objects.count(), DemoDealPacket.objects.count(), DealEvent.objects.count()), (1, 1, 1))
     def token(self):
         response=self.client.get(reverse('deal_completion_prepare',args=[self.deal.pk]))
         return response.context['form']['preview_token'].value()

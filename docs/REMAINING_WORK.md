@@ -11,8 +11,8 @@ with 2 skips. These are developer checks, not staff, legal or production
 validation. On November 9, an isolated PostgreSQL suite passed 638 tests with
 2 skips; a later full SQLite run covered 668 tests with 45 skips after the audit
 guard migration. On November 14, the full isolated PostgreSQL suite covered
-684 tests with 2 skips; the latest full runs covered 716 tests with 60 skips on
-SQLite and 716 tests with 2 skips on PostgreSQL. These
+684 tests with 2 skips; the latest full runs covered 777 tests with 78 skips on
+SQLite and 777 tests with 4 skips on PostgreSQL. These
 developer checks do not establish production readiness.
 
 ## Where we are
@@ -206,11 +206,13 @@ professional review.
   dealership ZIP orchestration. Schedule, baseline, linking and posting writes
   acquire the dealership row before book and membership/user locks, serializing
   those reviewed paths within a dealership despite differing inner lock orders.
-  Account ZIP download locks its book and writes its export event, but does not
-  explicitly request dealership or membership locks afterward. Finance module
-  export locks owner membership and reads without explicit book/dealership locks;
-  the dealership ZIP takes dealership first before invoking it. No concrete
-  inversion among these paths was established, so lock behavior was not changed.
+  Account ZIP download was subsequently hardened to lock dealership, book and
+  active same-dealership membership/user before preparing a ZIP or handling HEAD.
+  Owner, staff and viewer read access and transactional export auditing remain;
+  synthetic PostgreSQL tests cover revocation after book or identity lock waits.
+  Finance module export locks owner membership and reads without explicit
+  book/dealership locks; the dealership ZIP takes dealership first before invoking
+  it. No concrete inversion among these paths was established in the earlier audit.
   The focused SQLite schedule, servicing, account and export suite ran 60 tests
   with four PostgreSQL-only skips. A Unix-socket bind probe returned `Operation
   not permitted`; PostgreSQL lock waits, foreign-key interactions, administrative
@@ -224,9 +226,44 @@ professional review.
   isolation and an archived linked draft. The customer/activity models have no
   archive state; archiving a linked draft does not archive its customer activity.
   Fifteen `customers.test_activity` tests passed on SQLite, including existing
-  retry, CSRF and audit rollback checks. PostgreSQL concurrency, role changes
-  during requests, direct database access and other modules
-  were not verified by this review; no broad security certification is implied.
+  retry, CSRF and audit rollback checks. A subsequent synthetic hardening locks
+  dealership, customer and existing activity before rechecking the active actor;
+  create/edit also lock and recheck any selected assignee, including retries and
+  no-op edits. PostgreSQL tests exercise actor and assignee role/activity changes
+  during identity-lock waits. Completion does not reassign the existing assignee.
+  Direct database access and other modules remain outside this review; no broad
+  security certification is implied.
+  Customer creation/edit and the shared inline-save helper now lock dealership,
+  existing customer and active owner/staff membership before saving. The helper
+  also rejects stale direct edits before writing an event. Synthetic PostgreSQL
+  checks cover identity revocation during customer and inline-deal save waits;
+  these checks do not establish production readiness.
+  Draft creation, party edits and worksheet saves now lock the dealership and
+  existing deal before rechecking the active same-dealership owner/staff actor,
+  including duplicate creation retries and unchanged worksheet submissions.
+  The scoped change preserves the existing revision and completion guards; it
+  does not establish authorization for unrelated direct service callers.
+  Draft archive/restore and direct inline vehicle creation now also recheck locked
+  active editor membership. Synthetic completion already locked membership but
+  now rejects inactive actors before both initial completion and retry. Targeted
+  PostgreSQL checks exercise revocation while those identity locks are held.
+  Ordinary vehicle create/edit POSTs likewise recheck active same-dealership
+  editor membership after dealership and existing vehicle locks, before VIN
+  review or revision validation; this is a scoped authorization change.
+  Synthetic packet creation now locks and checks active same-dealership editor
+  membership and user before new artifacts or retries. PostgreSQL tests cover
+  identity revocation during lock waits and simultaneous same-key creation;
+  existing frozen snapshots, artifact bytes and stale-preview checks remain.
+  Packet pages, HTML artifacts and ZIP preparation also hold dealership and active
+  same-dealership member/user locks through response preparation. Owners, staff
+  and viewers retain access; PostgreSQL checks cover revocation during GET/HEAD
+  waits and ensure denied ZIP preparation writes no export event. This cannot
+  guarantee delivery after response preparation or revoke previously sent bytes.
+  Supporting-file, invoice, acquisition-file and vehicle-photo downloads now
+  recheck and hold active same-dealership membership through preparation, using
+  the current role for archived-file visibility. PostgreSQL GET/HEAD races cover
+  identity revocation and owner-to-viewer downgrades; denied reads do not add
+  download events. Existing file integrity checks and no-store responses remain.
   A separate November 14 deal-follow-up review exercised anonymous, viewer,
   staff, owner and foreign-owner URL access, foreign deal/task IDs and mutation
   attempts, archived drafts, stale edits and invalid assignments. The internal
@@ -294,6 +331,11 @@ professional review.
   suite passed 25 tests in a disposable database. The feedback and dealership-export
   SQLite suite ran 19 tests with one PostgreSQL-only skip. Other concurrent
   role changes, cross-module lock orders and production recovery remain open.
+  Feedback confirmation now also locks and rechecks active same-dealership
+  membership before saving or accepting a retry; owners, staff and viewers retain
+  reporting access. Synthetic PostgreSQL tests cover identity revocation during
+  lock waits and simultaneous confirmation of one private report. Reports remain
+  local; confirmation does not send them externally or add an audit event.
   Synthetic BHPH account and export access received focused SQLite and PostgreSQL
   checks. A SQLite migration restores export audit guards lost during table
   rebuilds; existing databases must apply it. A focused dealership ZIP review
@@ -360,6 +402,89 @@ professional review.
   download and unchanged artifact after a rolled-back source-customer edit;
   five safety tests passed. This does not verify every packet version or live recovery.
 
+  On November 17, the isolated synthetic restore drill passed again against the
+  current source, checking the packet, ledger, inventory audit guards, private
+  artifacts and scoped downloads. The drill now also compares every field of a
+  synthetic servicing schedule and selected baseline after restore, verifies
+  the expected coverage and scoped view, and checks that the records remain
+  unchanged. The expanded drill passed independently; 20 focused SQLite restore
+  safety and servicing tests also passed. The production and coverage limits
+  above remain. A further independent run restored a completed synthetic deal
+  and its BHPH handoff, compared retained completion, packet, account and ledger
+  fields, and checked frozen provenance and scoped access. Five restore safety
+  tests passed; these checks do not establish live recovery.
+  The drill also restores synthetic customer activities, customer events and
+  offline mock-message submissions/events, compares their fields, and checks
+  scoped history, mock status and customer exports. An independent PostgreSQL
+  drill and 29 focused SQLite safety/activity/mock tests passed; no messages
+  were sent to a provider.
+  Another independent drill restored vendor events, reconditioning tasks, cost
+  records and a linked reversal, checking captured fields, audit history,
+  vendor snapshots, net cost and dealership access. Twenty-three SQLite restore
+  safety and reconditioning tests passed.
+  An independent drill also restored local feedback and the dealership-package
+  preparation audit, checking their fields, the package manifest and scoped
+  access. The SQLite feedback/restore suite ran 23 tests with one PostgreSQL-only
+  skip. No feedback was sent externally; there is no feedback-creation audit.
+  The expanded drill also restored a synthetic trade and its deal history,
+  comparing draft, proposal, trade and event fields and preserving the trade's
+  frozen packet details. An independent PostgreSQL drill passed; 41 SQLite
+  safety, trade and completion tests ran with one PostgreSQL-only skip.
+  A further drill restored synthetic follow-up events, a void and follow-on
+  provenance; compared captured fields; and checked scoped access and the
+  void/follow-on immutability guards. An independent PostgreSQL drill passed;
+  33 SQLite safety and focused tests ran with four PostgreSQL-only skips.
+  Migration `deals.0016` now rejects follow-up event updates and deletes on
+  SQLite and PostgreSQL; it preserves existing rows and is reversible. The
+  focused checks passed on both backends, including migration reversal and
+  reapplication. Apply it to existing databases. SQLite table rebuilds must
+  retain these guards; privileged database operations and PostgreSQL TRUNCATE
+  can bypass row triggers.
+  Migration `customers.0010` applies the same update/delete protection to
+  customer history without rewriting existing rows. Twenty focused tests passed
+  on each backend, including migration reversal and reapplication; existing
+  databases need the migration and the same database-privilege and SQLite
+  rebuild limitations apply. The isolated PostgreSQL restore drill independently
+  verified that restored customer events reject updates and deletes and retain
+  their captured fields; five restore safety tests also passed.
+  Migration `inventory.0012` similarly protects vendor history from updates and
+  deletes without rewriting records. Twenty focused tests passed on each backend,
+  including guard reversal and reapplication. Existing databases need the
+  migration; SQLite rebuild and privileged-operation limitations also apply.
+  The restored guard and unchanged vendor event fields passed an independent
+  PostgreSQL drill; five restore safety tests passed.
+  Migration `documents.0006` protects invoice history from update/delete;
+  fourteen focused tests passed on each backend, including migration reversal,
+  reapplication and existing invoice workflows. Existing databases need the
+  migration; SQLite rebuild and privileged-operation limitations apply. An
+  independent PostgreSQL restore drill verified the restored invoice-event
+  guard and retained fields; five restore safety tests passed.
+  Migration `documents.0007` protects packet-export preparation events from
+  update/delete. Thirteen focused tests passed on each backend, including
+  repeat exports and migration reversal/reapplication. Existing databases need
+  the migration; SQLite rebuild and privileged-operation limitations apply.
+  An independent PostgreSQL drill restored a prepared packet-export event,
+  compared its fields and checked the guard; five restore safety tests passed.
+  Migration `documents.0008` protects deal-file events from update/delete while
+  retaining archive/restore behavior. Thirty focused tests passed on PostgreSQL;
+  the same SQLite run had one skip. An independent SQLite subset ran 24 tests
+  with one skip. Existing databases need the migration; SQLite rebuild and
+  privileged-operation limitations apply. An independent PostgreSQL restore
+  drill verified the restored deal-file event guard and retained fields; five
+  restore safety tests passed.
+  Migration `deals.0017` extends deal-event update/delete protection to drafts
+  while retaining completion guards. Thirty-six focused lifecycle, completion
+  and migration tests passed on each backend; an independent SQLite subset of
+  17 passed. Existing databases need the migration; SQLite rebuild and
+  privileged-operation limitations apply. An independent PostgreSQL restore
+  drill checked restored draft and completed event guards and retained fields;
+  five restore safety tests passed.
+  The first full SQLite run exposed test-flush failures from the new guards.
+  The test runner now temporarily suspends delete triggers only while flushing
+  registered in-memory SQLite test databases and restores them transactionally;
+  its isolation checks and the full SQLite suite passed. Production guards are
+  unchanged. PostgreSQL also passed the full suite after this addition.
+
   **Current model and artifact inventory:** The module exports cover dealership
   and membership provenance and prior dealership exports; customers, activities,
   change and export events, and mock-message histories; vehicles, photos, vendors,
@@ -413,8 +538,20 @@ professional review.
   older database/private-file restores using synthetic fixtures. No hold runtime
   checks or legal/staff approval are claimed by the documentation task.
   Automatic deletion remains disabled; no universal period, disposal action or
-  backup-expiration workflow is authorized. Existing deletion/cleanup paths still
-  require inspection before they can be described as hold-aware.
+  backup-expiration workflow is authorized. A November 15 static inventory in
+  [retention research](FLORIDA_RETENTION_RESEARCH.md#existing-removal-and-cleanup-inventory)
+  identifies saved-view deletion, archives, failed-upload cleanup and disposable
+  restore cleanup; none enforces holds. External and operational paths remain
+  unverified and must be assessed before preservation enforcement is relied on.
+  Photo uploads now recheck active owner/staff membership after dealership and
+  vehicle locks, and reject outer transactions before writing private files; this
+  does not implement legal holds or guarantee cleanup when storage deletion fails.
+  Failed uploads attempt cleanup of each recorded new blob without masking the
+  original error; 22 photo tests passed on PostgreSQL and 22 ran on SQLite with
+  three PostgreSQL-only skips. A storage write that raises before returning its
+  name can still leave an orphan.
+  Photo hide, restore and cover actions also recheck that authorization under the
+  same lock order, including cover requests that make no change.
   An explicitly gated, offline `core/hold_rehearsal.py` exercises overlapping
   synthetic holds, unknown scope, independent release and reactivation with
   immutable in-memory events. Five isolated tests passed; it has no database,
@@ -461,7 +598,11 @@ professional review.
   notes—with dealership isolation, owner/staff editing, revision checks, and
   change history in `inventory`; private synthetic vehicle invoice PDF
   attachments linked to vehicles and itemized costs were independently verified
-  with 39 SQLite tests passing and 1 backend-specific skip.)
+  with 39 SQLite tests passing and 1 backend-specific skip. Synthetic vendor,
+  task and cost mutations now lock and recheck active owner/staff actors; task
+  assignment also locks and rechecks the assignee, including retries. PostgreSQL
+  race checks cover role and activity changes while parent or identity rows are
+  locked, alongside existing cost idempotency and reversal checks.)
 - [x] Add task editing, assignment, scheduling and useful aging/queue filters;
   distinguish an operational work status from a safety inspection or sale approval.
   (Implemented for synthetic reconditioning tasks and the work queue; operational
@@ -496,8 +637,11 @@ professional review.
   (Implemented dealership-scoped, formula-safe CSV exports on the synthetic
   inventory investment report, the reconditioning work queue, each vehicle's
   itemized cost register, and BHPH payment activity with explicit recorded-cost,
-  reversal, operational, and unapplied-payment semantics. Reviewed sales and
-  reconciliation report exports remain open.)
+  reversal, operational, and unapplied-payment semantics. Those four CSV paths
+  now lock and recheck active same-dealership member/user authorization before
+  capture, including viewer access. Synthetic PostgreSQL tests exercise identity
+  revocation during GET/HEAD lock waits; ordinary report pages were not changed.
+  Reviewed sales and reconciliation report exports remain open.)
 - [ ] Design accounting mappings, general-ledger integration, reconciliation and
   optional QuickBooks integration. Current recorded-cost differences are not net
   profit and the synthetic finance journal is not full dealership accounting.
@@ -526,8 +670,9 @@ professional review.
   recruit a few dealership reviewers and record their findings without real data.
   (Linked the [synthetic BHPH walkthrough](BHPH_DEMO_WALKTHROUGH.md) and added
   concrete contributor starting points, verification expectations, and
-  production-gate boundaries in `CONTRIBUTING.md`; current screenshots and
-  dealership reviewer recruitment/sessions remain open.)
+  production-gate boundaries in `CONTRIBUTING.md`. The walkthrough includes a
+  verified November 18 screenshot of a synthetic account after a full receipt
+  reversal. Dealership reviewer recruitment and staff sessions remain open.)
 - [ ] Review README and other historical documents for stale status claims; keep
   public feature descriptions and production limitations accurate.
   (`README.md`, `CONTRIBUTING.md`, `docs/DEVELOPMENT.md`,
@@ -544,6 +689,20 @@ professional review.
   SQLite audit-guard restorations, limited owner exports, disposable restore
   exercise, and unvalidated staff-testing status; review of remaining older
   per-slice historical docs in `docs/` stays open before any public release.)
+  A November 17 source review also covered `docs/DEMO_SERVICING.md` and
+  `docs/CUSTOMER_EXPORT.md`, correcting the account export version and
+  clarifying historical test evidence and customer-export authorization.
+  It also covered `docs/SYNTHETIC_MIGRATION_RECONCILIATION.md` and
+  `docs/SYNTHETIC_RESTORE_EXERCISE.md`; nine reconciliation and five restore
+  safety tests passed on SQLite.
+  A source review of `docs/ACCOUNTING_MAPPING_DESIGN.md` and
+  `docs/FIRST_TIME_UX_REVIEW.md` clarified proposed accounting controls and
+  distinguished historical UX observations from current behavior.
+  The dated BHPH journey, October UX audit and development review were also
+  checked against current source and labeled as historical observations.
+  The November evaluation and competitor workflow notes were reviewed as well;
+  stale report and customer-history descriptions were corrected while retaining
+  the private-reference release restrictions.
   On November 9, source and template review also covered exactly
   `docs/ACCOUNT_SEARCH.md`, `docs/CUSTOMER_ADDRESSES.md`,
   `docs/CUSTOMERS_AND_DEALS.md`, `docs/DEAL_FOLLOWUPS.md`,

@@ -179,6 +179,11 @@ class DealFollowUp(models.Model):
 
 
 class FollowUpEvent(models.Model):
+    """Follow-up history protected against ordinary database updates and deletes.
+
+    SQLite table rebuilds must restore the guards; privileged database access
+    and PostgreSQL TRUNCATE can bypass row-level triggers.
+    """
     follow_up = models.ForeignKey(DealFollowUp, on_delete=models.PROTECT, related_name='events')
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     action = models.CharField(max_length=15)

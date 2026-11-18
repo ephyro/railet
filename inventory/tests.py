@@ -2,6 +2,7 @@
 from decimal import Decimal
 from unittest.mock import patch
 from django.contrib.auth import get_user_model
+from django.core.exceptions import PermissionDenied
 from django.test import TestCase
 from django.urls import reverse
 from core.models import Dealership, Membership, AuditEvent
@@ -20,6 +21,49 @@ class InventorySecurityTests(TestCase):
     def test_anonymous_redirects(self):
         self.client.logout()
         self.assertEqual(self.client.get(reverse("inventory")).status_code, 302)
+    def test_inline_vehicle_rechecks_actor_membership(self):
+        from .inline import InlineVehicleForm, create_inline_vehicle
+        for revoked in ('inactive', 'viewer', 'foreign', 'removed'):
+            with self.subTest(revoked=revoked):
+                form = InlineVehicleForm(self.data, dealership=self.dealer)
+                self.assertTrue(form.is_valid(), form.errors)
+                if revoked == 'inactive':
+                    get_user_model().objects.filter(pk=self.user.pk).update(is_active=False)
+                elif revoked == 'viewer':
+                    Membership.objects.filter(pk=self.member.pk).update(role='viewer')
+                elif revoked == 'foreign':
+                    Membership.objects.filter(pk=self.member.pk).update(dealership=self.other)
+                else:
+                    Membership.objects.filter(pk=self.member.pk).delete()
+                with self.assertRaises(PermissionDenied):
+                    create_inline_vehicle(form, dealership=self.dealer, actor=self.user)
+                self.assertFalse(Vehicle.objects.filter(stock_number='NEW').exists())
+                self.assertFalse(AuditEvent.objects.exists())
+                get_user_model().objects.filter(pk=self.user.pk).update(is_active=True)
+                self.member, _ = Membership.objects.update_or_create(user=self.user, defaults={'dealership': self.dealer, 'role': 'owner'})
+    def test_vehicle_create_and_edit_recheck_membership_before_validation(self):
+        select = Membership.objects.select_for_update
+        requests = [(reverse('vehicle_create'), self.data),
+                    (reverse('vehicle_create'), self.data | {'year': ''}),
+                    (reverse('vehicle_edit', args=[self.vehicle.pk]), self.data | {'stock_number': 'A-1', 'revision': 1}),
+                    (reverse('vehicle_edit', args=[self.vehicle.pk]), self.data | {'stock_number': 'A-1', 'revision': 99})]
+        for revoked in ('inactive', 'viewer', 'foreign', 'removed'):
+            for url, payload in requests:
+                with self.subTest(revoked=revoked, url=url):
+                    def revoke():
+                        if revoked == 'inactive':
+                            get_user_model().objects.filter(pk=self.user.pk).update(is_active=False)
+                        elif revoked == 'viewer':
+                            Membership.objects.filter(pk=self.member.pk).update(role='viewer')
+                        elif revoked == 'foreign':
+                            Membership.objects.filter(pk=self.member.pk).update(dealership=self.other)
+                        else:
+                            Membership.objects.filter(pk=self.member.pk).delete()
+                        return select()
+                    with patch('inventory.views.Membership.objects.select_for_update', side_effect=revoke):
+                        self.assertEqual(self.client.post(url, payload).status_code, 403)
+                    self.vehicle.refresh_from_db()
+                    self.assertEqual((Vehicle.objects.count(), AuditEvent.objects.count(), self.vehicle.revision, self.vehicle.model), (2, 0, 1, 'Local'))
     def test_no_membership_denied(self):
         self.member.delete()
         self.assertEqual(self.client.get(reverse("inventory")).status_code, 403)

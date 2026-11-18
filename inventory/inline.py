@@ -27,9 +27,9 @@ class InlineVehicleForm(VehicleForm):
 
 @transaction.atomic
 def create_inline_vehicle(form,*,dealership,actor):
-    if not Membership.objects.filter(dealership=dealership,user=actor,role__in=['owner','staff']).exists():raise PermissionDenied
-    if form.instance.pk or form.instance.dealership_id!=dealership.pk:raise ValidationError('Use a new vehicle from this dealership.')
     Dealership.objects.select_for_update().get(pk=dealership.pk)
+    if not getattr(actor,'is_authenticated',False) or not getattr(actor,'pk',None) or not Membership.objects.select_for_update().filter(dealership=dealership,user_id=actor.pk,user__is_active=True,role__in=['owner','staff']).exists():raise PermissionDenied
+    if form.instance.pk or form.instance.dealership_id!=dealership.pk:raise ValidationError('Use a new vehicle from this dealership.')
     matches=set(matching_vehicles(dealership=dealership,vin=form.cleaned_data.get('vin','')).values_list('pk',flat=True)) if form.cleaned_data.get('vin') else set()
     reviewed={v.pk for v in form.duplicate_matches}
     if matches!=reviewed:raise ValidationError('Inventory changed during entry. Review matching VINs again before saving.')

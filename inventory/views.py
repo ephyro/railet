@@ -17,8 +17,8 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST, require_safe
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from core.models import AuditEvent, Dealership
-from core.access import member_view, context, require_editor
+from core.models import AuditEvent, Dealership, Membership
+from core.access import authorized_private_read, member_view, context, require_editor
 from .forms import VehicleForm, VehiclePhotoForm
 from .models import Vehicle, VehiclePhoto
 from .photos import add_photos, change_photo
@@ -140,6 +140,7 @@ def _private_photo_response(view):
 
 @_private_photo_response
 @member_view
+@authorized_private_read
 @require_safe
 def vehicle_photo_file(request, pk, thumbnail=False):
     choices = VehiclePhoto.objects.filter(vehicle__dealership=request.member.dealership)
@@ -180,6 +181,11 @@ def save_vehicle(request, pk=None):
             vehicle = get_object_or_404(choices, pk=pk)
         else:
             vehicle = Vehicle(dealership=request.member.dealership)
+        if request.method == "POST" and not Membership.objects.select_for_update().filter(
+            user_id=request.user.pk, user__is_active=True, dealership_id=request.member.dealership_id,
+            role__in=[Membership.Role.OWNER, Membership.Role.STAFF],
+        ).exists():
+            raise PermissionDenied("Inventory changes require an owner or inventory staff role.")
         before = {field: str(getattr(vehicle, field)) for field in VehicleForm.Meta.fields} if pk else {}
         form = VehicleForm(
             request.POST if request.method == "POST" else None,

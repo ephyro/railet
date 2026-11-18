@@ -120,11 +120,10 @@ def create_packet(*, dealership_id, deal_id, actor, creation_key, expected_sourc
     check_gate()
     with transaction.atomic():
         Dealership.objects.select_for_update().get(pk=dealership_id)
-        try:
-            membership = Membership.objects.select_for_update().get(user=actor, dealership_id=dealership_id)
-        except Membership.DoesNotExist as error:
-            raise PermissionDenied from error
-        if membership.role not in (Membership.Role.OWNER, Membership.Role.STAFF):
+        if not getattr(actor, 'is_authenticated', False) or not getattr(actor, 'pk', None) or not Membership.objects.select_for_update().filter(
+            user_id=actor.pk, user__is_active=True, dealership_id=dealership_id,
+            role__in=[Membership.Role.OWNER, Membership.Role.STAFF],
+        ).exists():
             raise PermissionDenied
         prior = DemoDealPacket.objects.filter(deal_id=deal_id, deal__dealership_id=dealership_id, creation_key=creation_key).first()
         if prior:
