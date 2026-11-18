@@ -35,7 +35,16 @@ def search_drafts(dealership, query):
         vehicle &= term
 
     customers = search_customers(dealership, query)
-    match = vehicle | Q(buyer__in=customers) | Q(co_buyer__in=customers)
+    frozen = Q()
+    for word in query.split():
+        frozen &= (
+            Q(demo_completion__packet__snapshot__buyer__name__icontains=word)
+            | Q(demo_completion__packet__snapshot__co_buyer__name__icontains=word)
+            | Q(demo_completion__packet__snapshot__vehicle__description__icontains=word)
+            | Q(demo_completion__packet__snapshot__vehicle__stock_number__icontains=word)
+            | Q(demo_completion__packet__snapshot__vehicle__facts__VIN__icontains=word)
+        )
+    match = vehicle | Q(buyer__in=customers) | Q(co_buyer__in=customers) | frozen
     if number is not None:
         match |= Q(pk=number)
     return drafts.filter(match)

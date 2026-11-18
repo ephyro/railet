@@ -14,9 +14,11 @@
   <p>This read-only page is an internal draft review. It does not create a contract, financing schedule, signature, or finalized document.</p>
 </div>
 
+{% if completion_enabled and member.can_manage_inventory and not deal.archived_at %}<section class="workflow-next"><div><strong>Next: rehearse completion</strong><p>Review the saved figures and freeze a test record. No sale, contract or loan is created.</p></div><a class="button" href="{% url 'deal_completion_prepare' deal.pk %}">Review and freeze</a></section>{% endif %}
 <div class="review-toolbar" aria-label="Deal actions">
   <a href="{% url 'deal_detail' deal.pk %}">Return to deal worksheet</a>
   {% if member.can_manage_inventory %}<a href="{% url 'deal_edit' deal.pk %}">Edit deal</a>{% endif %}
+  {% if completion_enabled %}<a href="{% url 'demo_packet_list' deal.pk %}">Demo packets</a>{% endif %}
 </div>
 
 <div class="review-grid">

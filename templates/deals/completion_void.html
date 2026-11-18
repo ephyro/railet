@@ -1,0 +1,8 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}{% load assets %}{% block title %}Review void rehearsal{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset_url 'deal-completion.css' %}">{% endblock %}
+{% block content %}
+<section class="page-heading"><a href="{% url 'deal_completion' record.deal_id %}">Back to completion</a><h1>Review void rehearsal · Deal #{{ record.deal_id }}</h1><p>{{ snapshot.vehicle.description }} · {{ snapshot.buyer.name }}</p></section>
+<section class="panel completion-record"><p>This records an internal synthetic rehearsal only. It does not cancel a sale or contract, and does not correct a payment or balance. The original completion and packet remain unchanged. A demo BHPH account cannot be opened or linked afterward.</p>
+<form method="post">{% csrf_token %}{{ form.non_field_errors }}{{ form.preview_token }}<p>{{ form.reason.label_tag }} {{ form.reason }} {{ form.reason.errors }}</p><p>{{ form.confirmed }} {{ form.confirmed.label_tag }} {{ form.confirmed.errors }}</p><button class="button" type="submit">Record void rehearsal</button> <a href="{% url 'deal_completion' record.deal_id %}">Cancel</a></form></section>
+{% endblock %}

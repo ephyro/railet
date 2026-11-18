@@ -11,7 +11,7 @@ Open an existing saved demo packet and expand **Export this demo packet**. The e
 
 Every export of the same retained packet produces the same ZIP bytes: content ordering, member timestamps, modes and compression settings are fixed. No current customer/vehicle edits, archive changes or export-time timestamps are added to the bundle. Manifest hashes detect accidental changes, not malicious replacement, authorship or digital signatures.
 
-This is **one demonstration packet**, not a complete deal export, complete data export, signed-document archive, or database/media backup. Uploads, signed files, photographs, complete history and later changes are excluded. There is no import/restore tool. The ZIP is not encrypted; recipients must handle it privately. No cloud reporting or network integration is involved in preparing it. It remains behind the development demo-packet gate.
+This is **one demonstration packet**, not a complete deal export, complete data export, signed-document archive, or database/media backup. Uploads, signed files, photographs, complete history and later changes are excluded. A separate owner-only synthetic dealership ZIP includes document artifacts and photos, but is also not a coordinated backup or restore tool. This packet ZIP is not encrypted; recipients must handle it privately. No cloud reporting or network integration is involved in preparing it. It remains behind the development demo-packet gate.
 
 ## Controls
 
@@ -21,12 +21,12 @@ Stored HTML and source JSON fingerprints must match before packaging; failures r
 
 The export does not mutate the packet, draft, money, parties or template. Audit rows are protected from application deletion via this slice, not privileged direct database mutation. Record-specific retention/legal-hold policy and full restore verification remain outstanding.
 
-## Verification
+## Historical verification (October 2026)
 
 Nine focused tests cover exact artifact/data bytes and independent manifest verification, deterministic exports after draft changes, authorization before packaging, viewer access, tampered HTML/data rejection, HEAD/POST behavior, disabled gate, audit failure and size bounds. The relevant export/packet/history/lifecycle suite passed 35 tests. Django system and migration drift checks passed.
 
-The new migration is `documents.0003_demopacketexportevent`. It was applied to the isolated synthetic SQLite preview only; the primary VM and PostgreSQL integration remain unavailable. Firefox verified the explanatory controls, authenticated attachment response, exact four filenames, independent member hashes and demonstration markings. Export controls were checked at 1440,390,320 pixels with no horizontal overflow. These checks use that separate synthetic local database, not PostgreSQL or staff usability testing. No production deployment or public push is performed.
+The migration was `documents.0003_demopacketexportevent`. The initial check used an isolated synthetic SQLite preview; the primary VM and PostgreSQL integration were then unavailable. Firefox verified the explanatory controls, authenticated attachment response, exact four filenames, independent member hashes and demonstration markings. Export controls were checked at 1440,390,320 pixels with no horizontal overflow. These checks used that separate synthetic local database, not staff usability testing. No production deployment or public push occurred for that slice.
 
 ## PostgreSQL integration follow-up
 
-The subsequent isolated PostgreSQL 17.11 integration completed: all current migrations applied to a fresh synthetic database, the complete DMS suite passed 237 tests with no skips, and browser workflows passed on PostgreSQL. This supersedes the earlier lack of PostgreSQL runtime evidence for this source slice. The original offline VM and its existing data remain untouched and unverified for upgrade. See [POSTGRES_INTEGRATION.md](POSTGRES_INTEGRATION.md) for environment, concurrency, browser and synthetic restore evidence and limits.
+The subsequent isolated PostgreSQL 17.11 integration completed: migrations existing then applied to a fresh synthetic database, the then-current DMS suite passed 237 tests with no skips, and browser workflows passed on PostgreSQL. This supersedes the earlier lack of PostgreSQL runtime evidence for this source slice, not verification of later changes. The original offline VM and its existing data were not verified for upgrade. See [POSTGRES_INTEGRATION.md](POSTGRES_INTEGRATION.md) for environment, concurrency, browser and synthetic restore evidence and limits.

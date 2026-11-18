@@ -1,0 +1,22 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}
+{% block title %}Deal terms practice{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <a href="{% url 'paperwork_review' packet.deal_id packet.pk %}">Back to paperwork review</a>
+  <h1>Deal terms practice</h1>
+  <p>Practice only · Not a contract · Not for signature</p>
+</section>
+<section class="panel">
+  <p class="notice"><strong>Synthetic data only.</strong> This is not a credit disclosure, payment schedule or legal agreement. Draft estimates and the entered contract rate are not an amount financed or APR. No payment, loan or financing is created.</p>
+  <p>Demo packet #{{ packet.pk }}, saved {{ packet.created_at|date:'M j, Y · g:i A' }}. This screen uses captured facts and the current display template; it is not a finalized document.</p>
+  <h2>Deal</h2>
+  <p>{{ snapshot.vehicle.description }} · {{ snapshot.buyer.name }} · {{ snapshot.deal_type|default:'Not recorded' }}</p>
+  <h2>Draft amounts</h2>
+  <table><tbody>{% for label, value in snapshot.worksheet_rows %}<tr><th scope="row">{{ label }}</th><td>{{ value }}</td></tr>{% empty %}<tr><td>Amounts were not recorded in this snapshot.</td></tr>{% endfor %}</tbody></table>
+  <h2>Financing details entered</h2>
+  {% if snapshot.proposal %}<dl>{% for label, value in snapshot.proposal.items %}<dt>{{ label }}</dt><dd>{{ value|default:'Not recorded' }}</dd>{% endfor %}</dl>{% else %}<p>No financing proposal was saved in this snapshot.</p>{% endif %}
+  <p>Professional review is required to identify applicable forms, verify figures and disclosures, and determine what to provide the customer.</p>
+  <p><strong>Practice only · Not a contract · Not for signature</strong></p>
+</section>
+{% endblock %}

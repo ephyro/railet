@@ -1,0 +1,14 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}{% load assets %}
+{% block title %}{% if kind == 'cost' %}Record vehicle cost{% elif kind == 'reversal' %}Correct vehicle cost{% elif kind == 'status' %}Update work status{% elif kind == 'edit_task' %}Edit work{% else %}Add work{% endif %}{% endblock %}
+{% block content %}
+<section class="page-heading"><a href="{% url 'vehicle_recon' vehicle.pk %}">Work and costs · Stock {{ vehicle.stock_number }}</a><h1>{% if kind == 'cost' %}Record vehicle cost{% elif kind == 'reversal' %}Correct vehicle cost{% elif kind == 'status' %}Update work status{% elif kind == 'edit_task' %}Edit work{% else %}Add work{% endif %}</h1><p>{{ vehicle }}</p></section>
+<section class="panel entry-panel"><form method="post" data-unsaved-form>
+{% csrf_token %}
+{% if form.errors %}<div class="notice" role="alert" tabindex="-1" data-error-summary><h2>Check your entries</h2>{{ form.non_field_errors }}<ul>{% for field in form %}{% if field.errors %}<li><a href="#{{ field.id_for_label }}">{{ field.label }}: {{ field.errors|striptags }}</a></li>{% endif %}{% endfor %}</ul></div>{% endif %}
+{% if entry %}<div class="notice"><strong>Reverse ${{ entry.amount|floatformat:'2g' }} from this vehicle's itemized costs.</strong><p>#{{ entry.pk }} · {{ entry.description }}{% if entry.vendor_name %} · {{ entry.vendor_name }}{% endif %}</p><p>The original remains in history. This records an equal opposite cost entry; it does not refund a payment. Record a replacement cost separately if needed.</p></div>{% elif kind == 'cost' %}<p>Only record an incurred cost not already included in the purchase amount or unitemized recon. Planned work goes in the work list.</p>{% elif kind == 'edit_task' %}<p class="muted">Operational work tracking only. Updating a task does not record a safety inspection or approve the vehicle for sale.</p>{% elif task %}<p>{{ task.title }}</p>{% endif %}
+{% for field in form.hidden_fields %}{{ field }}{% endfor %}
+<div class="form-grid">{% for field in form.visible_fields %}{% include 'shared/field.html' with field=field %}{% endfor %}</div>
+<div class="actions entry-actions"><button class="button">{% if kind == 'cost' %}Record cost{% elif kind == 'reversal' %}Reverse cost{% elif kind == 'status' %}Save status{% elif kind == 'edit_task' %}Save work{% else %}Add work{% endif %}</button><a href="{% url 'vehicle_recon' vehicle.pk %}">Cancel</a></div>
+</form></section>
+{% endblock %}

@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 from core.access import member_view
 from .models import DemoDealPacket, DemoPacketExportEvent
-from .packet_views import private_packet
+from .packet_views import packet_authorized, private_packet
 from .packets import digest, source_digest
 
 MAX_PART_BYTES = 8 * 1024 * 1024
@@ -71,6 +71,7 @@ def build_bundle(packet):
 
 @private_packet
 @member_view
+@packet_authorized
 @require_http_methods(['GET','HEAD'])
 def packet_export(request, pk, packet_pk):
     with transaction.atomic():

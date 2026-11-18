@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: MPL-2.0
 import uuid
 from datetime import timedelta
+from importlib import import_module
 from unittest.mock import patch
 from django.contrib.auth import get_user_model
+from django.db import DatabaseError, connection, transaction
 from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -60,6 +62,56 @@ class FollowUpTests(TestCase):
         self.assertEqual(list(task.events.values_list('action',flat=True)),['reopened','completed','created'])
         self.assertIsNotNone(task.events.get(action='completed').snapshot['completed_at'])
 
+    def test_follow_up_events_reject_database_update_and_delete(self):
+        if connection.vendor not in ('sqlite', 'postgresql'):
+            self.skipTest('Follow-up event guards support SQLite and PostgreSQL.')
+        task = self.create()
+        self.assertEqual(self.edit(task, completed='on').status_code, 302)
+        events = list(task.events.order_by('pk').values())
+        self.assertEqual([row['action'] for row in events], ['created', 'completed'])
+        event_id = events[0]['id']
+
+        def raw(sql):
+            with connection.cursor() as cursor:
+                cursor.execute(sql, [event_id])
+
+        operations = (
+            lambda: FollowUpEvent.objects.filter(pk=event_id).update(action='changed'),
+            lambda: FollowUpEvent.objects.filter(pk=event_id).delete(),
+            lambda: raw("UPDATE deals_followupevent SET action = 'changed' WHERE id = %s"),
+            lambda: raw('DELETE FROM deals_followupevent WHERE id = %s'),
+        )
+        for operation in operations:
+            with self.subTest(operation=operation), self.assertRaisesRegex(DatabaseError, 'Deal follow-up events are immutable'), transaction.atomic():
+                operation()
+        self.assertEqual(list(task.events.order_by('pk').values()), events)
+        self.assertEqual(self.client.get(reverse('followup_detail', args=[task.pk])).status_code, 200)
+
+    def test_follow_up_guard_migration_reverses_and_reapplies_without_losing_rows(self):
+        if connection.vendor not in ('sqlite', 'postgresql'):
+            self.skipTest('Follow-up event guards support SQLite and PostgreSQL.')
+        task = self.create()
+        event = task.events.get()
+        migration = import_module('deals.migrations.0016_followup_event_immutable')
+
+        class Editor:
+            def __init__(self, db):
+                self.connection = db
+
+            def execute(self, sql):
+                with self.connection.cursor() as cursor:
+                    cursor.execute(sql)
+
+        editor = Editor(connection)
+        migration.backward(None, editor)
+        try:
+            self.assertEqual(FollowUpEvent.objects.filter(pk=event.pk).update(action='synthetic'), 1)
+        finally:
+            migration.forward(None, editor)
+        self.assertEqual(FollowUpEvent.objects.get(pk=event.pk).action, 'synthetic')
+        with self.assertRaisesRegex(DatabaseError, 'Deal follow-up events are immutable'), transaction.atomic():
+            FollowUpEvent.objects.filter(pk=event.pk).delete()
+
     def test_stale_edit_is_preserved_and_noop_adds_no_event(self):
         task=self.create();self.assertEqual(self.edit(task).status_code,302)
         self.assertEqual(task.events.count(),1)
@@ -116,3 +168,64 @@ class FollowUpTests(TestCase):
         response=self.client.post(self.url,{**self.data,'due_on':'not-a-date'})
         self.assertContains(response,self.data['title']);self.assertTrue(response.context['form'].errors)
         self.assertEqual(DealFollowUp.objects.count(),0)
+
+    def test_direct_urls_roles_foreign_deal_and_mismatched_task(self):
+        task=self.create()
+        vehicle=Vehicle.objects.create(dealership=self.other,stock_number='FOREIGN-FOLLOW',year=2021,make='Synthetic',model='Car')
+        buyer=Customer.objects.create(dealership=self.other,first_name='Foreign',last_name='Demo')
+        foreign_deal=DraftDeal.objects.create(dealership=self.other,vehicle=vehicle,buyer=buyer)
+        foreign_task=DealFollowUp.objects.create(deal=foreign_deal,title='Foreign private task',created_by=self.users['foreign'])
+        edit=reverse('followup_edit',args=[self.deal.pk,task.pk])
+        detail=reverse('followup_detail',args=[task.pk])
+        self.client.logout()
+        for method,url in [('get',reverse('followups')),('get',detail),('get',self.url),('post',self.url),('get',edit),('post',edit)]:
+            self.assertEqual(getattr(self.client,method)(url).status_code,302)
+        for role in ('viewer','staff','coworker','foreign'):
+            with self.subTest(role=role):
+                self.client.force_login(self.users[role])
+                local=role!='foreign'; editor=role in ('staff','coworker')
+                self.assertEqual(self.client.get(detail).status_code,200 if local else 404)
+                self.assertEqual(self.client.get(self.url).status_code,403 if role=='viewer' else 200 if local else 404)
+                self.assertEqual(self.client.get(edit).status_code,403 if role=='viewer' else 200 if local else 404)
+                if not editor:
+                    self.assertEqual(self.client.post(edit,self.data|{'title':'Unauthorized'}).status_code,403 if local else 404)
+                    self.assertEqual(self.client.post(self.url,self.data|{'creation_key':str(uuid.uuid4())}).status_code,403 if local else 404)
+                listing=self.client.get(reverse('followups'),{'scope':'all'})
+                self.assertNotContains(listing,'Foreign private task' if local else self.data['title'])
+        self.client.force_login(self.users['staff'])
+        self.assertEqual(self.client.get(reverse('followup_edit',args=[self.deal.pk,foreign_task.pk])).status_code,404)
+        self.assertEqual(self.client.post(reverse('followup_edit',args=[self.deal.pk,foreign_task.pk]),self.data).status_code,404)
+        self.assertEqual(self.client.get(reverse('followups'),{'deal':foreign_deal.pk}).status_code,404)
+        task.refresh_from_db();foreign_task.refresh_from_db()
+        self.assertEqual(task.title,self.data['title']);self.assertEqual(foreign_task.title,'Foreign private task')
+
+    def test_owner_mutation_archived_stale_and_assignee_tampering(self):
+        self.deal.archived_at=timezone.now();self.deal.save(update_fields=['archived_at'])
+        self.client.force_login(self.users['coworker'])
+        task=self.create()
+        for role in ('foreign','viewer'):
+            response=self.edit(task,assigned_to=self.users[role].pk)
+            self.assertTrue(response.context['form'].errors)
+        self.assertEqual(self.edit(task,title='Updated archived follow-up').status_code,302)
+        response=self.edit(task,title='Stale archived follow-up')
+        self.assertEqual(response.status_code,409)
+        task.refresh_from_db();self.assertEqual((task.title,task.revision),('Updated archived follow-up',2))
+        self.deal.refresh_from_db();self.assertIsNotNone(self.deal.archived_at)
+
+    def test_save_helper_rejects_wrong_parent_and_tampered_assignee(self):
+        from django.core.exceptions import PermissionDenied
+        from django.test import RequestFactory
+        from .followups import FollowUpForm, save_form
+        task=self.create()
+        vehicle=Vehicle.objects.create(dealership=self.other,stock_number='OTHER-FOLLOW',year=2020,make='Synthetic',model='Car')
+        buyer=Customer.objects.create(dealership=self.other,first_name='Other',last_name='Demo')
+        foreign_deal=DraftDeal.objects.create(dealership=self.other,vehicle=vehicle,buyer=buyer)
+        foreign_task=DealFollowUp.objects.create(deal=foreign_deal,title='Protected',created_by=self.users['foreign'])
+        form=FollowUpForm(self.data,dealership=self.dealer);self.assertTrue(form.is_valid())
+        request=RequestFactory().post('/');request.user=self.users['staff']
+        with self.assertRaises(PermissionDenied):save_form(request,form,self.deal,foreign_task)
+        form.cleaned_data['assigned_to']=self.users['foreign']
+        saved,status=save_form(request,form,self.deal,task)
+        self.assertIsNone(saved);self.assertEqual(status,409)
+        foreign_task.refresh_from_db();task.refresh_from_db()
+        self.assertEqual(foreign_task.title,'Protected');self.assertEqual(task.revision,1)

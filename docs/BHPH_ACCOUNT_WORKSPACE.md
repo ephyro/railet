@@ -5,11 +5,11 @@ This workspace joins existing records without creating a loan or a second custom
 ## Record responsibilities
 
 - Customers own current contact details. The workspace links the authoritative customer record; it does not duplicate or freeze a contact profile.
-- Deals expose an explicit read interface for eligible BHPH drafts and their proposed facts. Only active drafts in the same dealership with this account's customer as buyer and a vehicle in that dealership are eligible.
-- Finance owns the existing synthetic book, journal and schedule illustrations, plus a one-time immutable `DemoAccountContext`. That context preserves vehicle identity, draft/revision references, title brand and proposed terms. It is context only, not a contract, legal amount financed, selected schedule or origination event.
-- The link preview is actor/dealership/book bound and expires after 30 minutes. Saving rechecks the current draft and digest under locks. Changed details require a fresh preview. Repeating the same save returns the saved context; another draft cannot replace it. PostgreSQL validates insertion scope; PostgreSQL and SQLite reject ordinary updates/deletes. Privileged database administrators can bypass these controls.
+- Deals expose an explicit read interface for eligible BHPH deals and their proposed facts. Active BHPH drafts in the same dealership with this account's customer as buyer and a vehicle in that dealership are eligible; when `DEMO_COMPLETION_ENABLED` and `DEMO_PACKETS_ENABLED` are enabled, non-voided completed BHPH rehearsals for that customer and dealership are also eligible (`completed_account_snapshot` / `link_completed`).
+- Finance owns the existing synthetic book, journal and schedule illustrations, plus a one-time immutable `DemoAccountContext`. That context preserves vehicle identity, draft/revision (or completed-rehearsal) references, title brand and proposed terms. It is context only, not a contract, legal amount financed, selected schedule or origination event.
+- The link preview is actor/dealership/book bound and expires after 30 minutes. Saving rechecks the current draft (or verified non-voided completion snapshot) and digest under locks. Changed details require a fresh preview. Repeating the same save returns the saved context; another deal cannot replace it. PostgreSQL validates insertion scope; PostgreSQL and SQLite reject ordinary updates/deletes. Privileged database administrators can bypass these controls.
 
-The workspace reads opening principal and net unapplied receipts from the existing ledger. It does not subtract unapplied receipts from principal. Alternative schedule illustrations remain forecasts using the opening amount, not schedules adjusted by actual payments. No amount due, next-payment status, delinquency, paid-through date, APR or payoff is inferred.
+The workspace reads opening principal and net unapplied receipts from the existing ledger. It does not subtract unapplied receipts from principal, and posted receipts remain wholly unapplied in the ledger. Alternative schedule illustrations remain forecasts using the opening amount. When `DEMO_SERVICING_ENABLED` is enabled and an account has an explicitly selected monthly precomputed `DemoServicingPlan`, the workspace also displays a labeled `(demo)` installment-coverage simulation (demo amount due, next/oldest unpaid date, and late status); this simulation never alters ledger balances, allocates principal or earned interest, or establishes legal delinquency or payoff (see [demo servicing](DEMO_SERVICING.md)).
 
 ## Payment rehearsal
 
@@ -33,9 +33,9 @@ Focused PostgreSQL regression run: 66 tests passed across finance, customer work
 
 BHPH workspace verification: the complete PostgreSQL suite passed **273 tests** in 124.795 seconds, with no skips. Synthetic account/browser evidence is retained privately under `.local/account-review/`.
 
-## Open directly from a saved BHPH draft
+## Open directly from a saved BHPH draft or completed rehearsal
 
-An active BHPH draft now offers **Open a demo BHPH account from this draft**. Customer and vehicle come from the saved authoritative records; staff enter an explicit invented opening amount, effective date and source, then review the proposed facts and financial consequences before confirming. No amount is prefilled from the worksheet and no real customer debt is inferred.
+An active BHPH draft or non-voided completed BHPH rehearsal offers **Set up BHPH account** / **Set up demo BHPH account** (`/deals/<id>/demo-account/`). Customer and vehicle come from the saved authoritative records (or frozen completion snapshot); staff enter an explicit invented opening amount, effective date and source, then review the proposed facts and financial consequences before confirming. No amount is prefilled from the worksheet and no real customer debt is inferred.
 
 Confirmation atomically creates the synthetic book, its balanced opening journal entry, and the frozen draft context. Any failure rolls back all three. Actor/dealership/draft-bound previews expire after 30 minutes. The service locks the dealership and draft, rechecks proposed facts, and rejects stale previews. Repeating a completed request returns its original account even if later draft edits occur; a reused request key with changed opening facts is rejected.
 

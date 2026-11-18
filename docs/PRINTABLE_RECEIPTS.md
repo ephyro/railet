@@ -34,7 +34,7 @@ Real receipts require applicable legal/operational review, receipt identity
 snapshots/versioning, delivery and retention decisions before live use. No
 production gate is changed and no real customer data is authorized.
 
-## Verification
+## Historical verification (October 2026)
 
 Full PostgreSQL suite: **389 tests passed in 132.967s**, no skips. Five new
 integration cases verify exact facts/method, immutable frozen vehicle identity

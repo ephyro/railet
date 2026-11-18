@@ -1,20 +1,30 @@
 # SPDX-License-Identifier: MPL-2.0
+import posixpath
+from functools import wraps
+from pathlib import Path, PurePosixPath
+
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
-from django.db.models import Q, F, Exists, OuterRef, Prefetch
+from django.db.models import Q, F, Exists, OuterRef, Prefetch, Count, Subquery
+from django.db.models.functions import Cast, Round
+from django.db.models import BigIntegerField
+from .reconditioning import with_cost_totals
 from django.core.paginator import Paginator
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponseForbidden, HttpResponseNotFound
+from django.conf import settings
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST, require_safe
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from core.models import AuditEvent, Dealership
-from core.access import member_view, context, require_editor
+from core.models import AuditEvent, Dealership, Membership
+from core.access import authorized_private_read, member_view, context, require_editor
 from .forms import VehicleForm, VehiclePhotoForm
 from .models import Vehicle, VehiclePhoto
 from .photos import add_photos, change_photo
 from core.filter_views import filter_context
 from .filters import SCHEMA
+from .vin_matching import normalized_vin_expression
 
 def vehicles(request):
     return Vehicle.objects.filter(dealership=request.member.dealership)
@@ -30,7 +40,7 @@ def today(request):
 def vehicle_list(request):
     filters = filter_context(request, SCHEMA)
     state = filters["filter_state"]
-    stock = vehicles(request).annotate(filter_total_cost=F("acquisition_cost") + F("recon_cost"), filter_has_photos=Exists(VehiclePhoto.objects.filter(vehicle_id=OuterRef("pk"), archived_at__isnull=True)))
+    stock = with_cost_totals(vehicles(request)).annotate(filter_total_cost=Cast(Round(F("acquisition_cost") * 100), BigIntegerField()) + Cast(Round(F("recon_cost") * 100), BigIntegerField()) + F("registered_cost_cents"), filter_has_photos=Exists(VehiclePhoto.objects.filter(vehicle_id=OuterRef("pk"), archived_at__isnull=True)))
     scope = state.extra.get("scope", "")
     if scope in ("active", "missing-title", "attention"):
         stock = stock.exclude(status=Vehicle.Status.SOLD)
@@ -52,7 +62,21 @@ def vehicle_list(request):
     page = Paginator(stock, 25).get_page(request.GET.get("page"))
     scope_labels = {"active": "Active inventory", "missing-title": "Active · missing titles", "attention": "Active · title follow-up"}
     quick_label = " · ".join(label for label in (scope_labels.get(scope), dict(Vehicle.Status.choices).get(status)) if label)
-    return render(request, "inventory/list.html", context(request, **filters, vehicles=page, page_obj=page, query=query, scope=scope, status=status, quick_filter_label=quick_label))
+    return render(request, "inventory/list.html", context(request, **filters, vehicles=page, page_obj=page, query=query, scope=scope, status=status, quick_filter_label=quick_label, duplicate_vin_review_enabled=settings.DEBUG))
+
+
+@never_cache
+@member_view
+@require_safe
+def duplicate_vin_report(request):
+    """Review matching stored VINs, including sold stock, without changing them."""
+    if not settings.DEBUG:
+        raise Http404
+    stock = vehicles(request).annotate(normalized_vin=normalized_vin_expression()).exclude(normalized_vin='')
+    duplicates = stock.order_by().values('normalized_vin').annotate(total=Count('pk')).filter(total__gt=1).values('normalized_vin')
+    rows = stock.filter(normalized_vin__in=Subquery(duplicates)).order_by('normalized_vin', 'stock_number', 'pk')
+    page = Paginator(rows, 25).get_page(request.GET.get('page'))
+    return render(request, 'inventory/duplicate_vin_report.html', context(request, page_obj=page, vehicles=page))
 
 @member_view
 def vehicle_detail(request, pk, photo_form=None):
@@ -97,7 +121,26 @@ def vehicle_photo_action(request, pk):
     return redirect(reverse("vehicle_detail", args=[photo.vehicle_id]) + "#photos")
 
 
+def _private_photo_response(view):
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        request._railet_private_response = True
+        try:
+            response = view(request, *args, **kwargs)
+        except Http404:
+            response = HttpResponseNotFound()
+        except PermissionDenied:
+            response = HttpResponseForbidden()
+        response["Cache-Control"] = "private, no-store"
+        response["Pragma"] = "no-cache"
+        response["Expires"] = "0"
+        return response
+    return wrapped
+
+
+@_private_photo_response
 @member_view
+@authorized_private_read
 @require_safe
 def vehicle_photo_file(request, pk, thumbnail=False):
     choices = VehiclePhoto.objects.filter(vehicle__dealership=request.member.dealership)
@@ -105,11 +148,23 @@ def vehicle_photo_file(request, pk, thumbnail=False):
         choices = choices.filter(archived_at__isnull=True)
     photo = get_object_or_404(choices, pk=pk)
     field = photo.thumbnail if thumbnail else photo.image
+    name = field.name or ""
+    path = PurePosixPath(name)
+    if (not name or "\\" in name or str(path) != name or path.is_absolute()
+            or len(path.parts) != 2 or path.parts[0] != "vehicles" or ".." in path.parts):
+        raise Http404
+    for image_name, thumb_name in VehiclePhoto.objects.exclude(vehicle__dealership_id=request.member.dealership_id).values_list("image", "thumbnail").iterator(chunk_size=1000):
+        if any(value and posixpath.normpath(value) == name for value in (image_name, thumb_name)):
+            raise Http404
     try:
+        root = Path(field.storage.location)
+        raw = Path(field.storage.path(name))
+        if (root.is_symlink() or raw.is_symlink() or raw.parent.is_symlink()
+                or not raw.resolve(strict=True).is_relative_to(root.resolve(strict=True))):
+            raise Http404
         response = FileResponse(field.open("rb"), content_type="image/jpeg", filename="vehicle-photo.jpg")
-    except FileNotFoundError:
+    except (OSError, ValueError):
         raise Http404("Photo unavailable")
-    response["Cache-Control"] = "private, no-store"
     return response
 
 def save_vehicle(request, pk=None):
@@ -126,6 +181,11 @@ def save_vehicle(request, pk=None):
             vehicle = get_object_or_404(choices, pk=pk)
         else:
             vehicle = Vehicle(dealership=request.member.dealership)
+        if request.method == "POST" and not Membership.objects.select_for_update().filter(
+            user_id=request.user.pk, user__is_active=True, dealership_id=request.member.dealership_id,
+            role__in=[Membership.Role.OWNER, Membership.Role.STAFF],
+        ).exists():
+            raise PermissionDenied("Inventory changes require an owner or inventory staff role.")
         before = {field: str(getattr(vehicle, field)) for field in VehicleForm.Meta.fields} if pk else {}
         form = VehicleForm(
             request.POST if request.method == "POST" else None,

@@ -32,6 +32,31 @@ class DraftLifecycleTests(TestCase):
     def change(self,action='archive',revision=1,reason='Synthetic abandoned draft'):
         return self.client.post(self.url,{'action':action,'revision':revision,'reason':reason})
 
+    def test_revocation_before_locked_check_blocks_archive_and_restore(self):
+        select = Membership.objects.select_for_update
+        for action, revision in (('archive', 1), ('restore', 2)):
+            if action == 'restore':
+                self.assertEqual(self.change().status_code, 302)
+            for revoked in ('inactive', 'viewer', 'foreign', 'removed'):
+                with self.subTest(action=action, revoked=revoked):
+                    count = self.deal.events.count()
+                    def revoke():
+                        user = self.users['staff']
+                        if revoked == 'inactive':
+                            get_user_model().objects.filter(pk=user.pk).update(is_active=False)
+                        elif revoked == 'viewer':
+                            Membership.objects.filter(user=user).update(role='viewer')
+                        elif revoked == 'foreign':
+                            Membership.objects.filter(user=user).update(dealership=self.other)
+                        else:
+                            Membership.objects.filter(user=user).delete()
+                        return select()
+                    with patch('deals.lifecycle.Membership.objects.select_for_update', side_effect=revoke):
+                        self.assertEqual(self.change(action, revision).status_code, 403)
+                    self.deal.refresh_from_db()
+                    self.assertEqual(self.deal.revision, revision)
+                    self.assertEqual(self.deal.events.count(), count)
+
     def test_archive_restore_history_and_money_preservation(self):
         self.assertEqual(self.change().status_code,302)
         self.deal.refresh_from_db();self.vehicle.refresh_from_db()

@@ -178,6 +178,8 @@ def confirm(request):
     if payload['actor']!=request.user.pk or payload['dealer']!=request.member.dealership_id:raise PermissionDenied
     kind=payload['kind']
     if kind not in FORMS:raise Http404
+    from core.models import Dealership
+    Dealership.objects.select_for_update().get(pk=request.member.dealership_id)
     book=scoped_book(request,payload['book'],locked=True) if payload['book'] else None
     posting=get_object_or_404(book.postings,pk=payload['posting'],kind='receipt') if payload['posting'] else None
     form=FORMS[kind](payload['data'],dealership=request.member.dealership)

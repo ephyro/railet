@@ -1,5 +1,10 @@
 # SPDX-License-Identifier: MPL-2.0
+from importlib import import_module
 from django.db import migrations,models
+
+
+def restore_sqlite_guards(apps, editor):
+    import_module('finance.migrations.0009_export_audit_immutable').restore_sqlite_guards(apps, editor)
 
 
 def forwards(apps,schema_editor):
@@ -42,4 +47,7 @@ def backwards(apps,schema_editor):
 
 class Migration(migrations.Migration):
     dependencies=[('finance','0011_demo_servicing_plan')]
-    operations=[migrations.RunPython(forwards,backwards),migrations.AlterField(model_name='demoaccountexport',name='format_version',field=models.CharField(default='demo-account-export-v3',max_length=40))]
+    operations=[migrations.RunPython(forwards,backwards),
+        migrations.RunPython(migrations.RunPython.noop, restore_sqlite_guards),
+        migrations.AlterField(model_name='demoaccountexport',name='format_version',field=models.CharField(default='demo-account-export-v3',max_length=40)),
+        migrations.RunPython(restore_sqlite_guards, migrations.RunPython.noop)]

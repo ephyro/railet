@@ -4,7 +4,14 @@ Thanks for helping make dealership software clearer. Railet is an early developm
 
 ## Start with a task
 
-Read [AGENTS.md](AGENTS.md), the [development guide](docs/DEVELOPMENT.md), and [product plan](docs/RAILET_PLAN.md). Discuss substantial architecture, financial, document, security, or scope changes before implementation. Small fixes can go directly to a pull request. An issue does not guarantee someone will implement it or a support response time.
+Read [AGENTS.md](AGENTS.md), the [development guide](docs/DEVELOPMENT.md), [product plan](docs/RAILET_PLAN.md), and [remaining work backlog](docs/REMAINING_WORK.md). For a guided tour of the current prototype, follow the [synthetic BHPH end-to-end walkthrough](docs/BHPH_DEMO_WALKTHROUGH.md) (`vehicle → customer → BHPH deal → draft review → completion rehearsal → BHPH account → test receipt`). Discuss substantial architecture, financial, document, security, or scope changes before implementation. Small fixes can go directly to a pull request. An issue does not guarantee someone will implement it or a support response time.
+
+### Current contributor starting points (synthetic workflows only)
+
+- **Walkthrough and responsive UX checks:** Run the [synthetic BHPH walkthrough](docs/BHPH_DEMO_WALKTHROUGH.md), reconditioning queue, or customer follow-up queue on desktop and mobile widths (`1440px`, `390px`, `320px`). Fix concrete keyboard focus, label, contrast, or layout issues without removing required notices or safety gates.
+- **Scoped reports and formula-safe exports:** Help define date, status, correction, and role semantics for remaining synthetic reports (such as itemized reconditioning costs, BHPH activity, or time-to-sale once sale dates exist), including cross-dealership isolation and CSV formula-injection tests.
+- **Isolated sandbox adapters (no live traffic):** Contribute to local-only test harnesses—such as the offline [DocuSeal rehearsal](docs/DOCUSEAL_REHEARSAL.md) or future sandbox messaging adapters—verifying webhook authentication, replay/idempotency handling, and notification suppression with `@example.invalid` identities only.
+- **Backup, restore, and isolation verification:** Expand automated tests and scripts for dealership isolation, append-only ledger/cost triggers, and database plus private-media backup/restore drills.
 
 Use Discussions for workflow questions and ideas. For bugs, explain what you expected, what happened, and how to reproduce it with invented records. Keep vulnerability details in [private security reporting](SECURITY.md).
 

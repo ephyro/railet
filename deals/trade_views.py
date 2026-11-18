@@ -19,6 +19,11 @@ def scoped_deal(request, pk):
         Dealership.objects.select_for_update().get(pk=request.member.dealership_id)
     choices = DraftDeal.objects.filter(dealership=request.member.dealership)
     deal = get_object_or_404(choices.select_for_update() if request.method == "POST" else choices, pk=pk)
+    from .completion import assert_open
+    try:assert_open(deal)
+    except ValidationError:
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied('This completed rehearsal is frozen. Open its completion record.')
     if deal.archived_at:
         from django.core.exceptions import PermissionDenied
         raise PermissionDenied("Restore this archived draft before changing its trade.")

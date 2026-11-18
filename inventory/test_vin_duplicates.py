@@ -111,6 +111,18 @@ class DuplicateVinReviewTests(TestCase):
         self.assertContains(match, "Stock LEGACY")
         self.assertEqual(list(matching_vehicles(dealership=self.dealer, vin="old-vin-42").values_list("pk", flat=True)), [legacy.pk])
 
+    def test_tab_and_unicode_whitespace_are_trimmed_without_changing_stored_vin(self):
+        legacy = self.vehicle(stock='TAB-SOLD', vin='\t\u00a0legacy-vin\n ', status='sold')
+        self.vehicle(stock='FOREIGN-TAB', vin='\tLEGACY-VIN\t', dealership=self.other_dealer)
+        self.assertEqual(list(matching_vehicles(dealership=self.dealer, vin=' legacy-VIN\t').values_list('pk', flat=True)), [legacy.pk])
+        self.assertFalse(matching_vehicles(dealership=self.dealer, vin='\t\u00a0 ').exists())
+        response = self.post_create(vin='legacy-vin')
+        self.assertContains(response, 'Stock TAB-SOLD')
+        self.assertNotContains(response, 'FOREIGN-TAB')
+        legacy.refresh_from_db()
+        self.assertEqual(legacy.vin, '\t\u00a0legacy-vin\n ')
+        self.assertFalse(AuditEvent.objects.exists())
+
     def test_cross_dealership_record_does_not_block_or_leak(self):
         foreign = self.vehicle(
             stock="PRIVATE-STOCK",

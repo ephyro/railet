@@ -1,0 +1,13 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}{% load assets %}
+{% block title %}{% if editing %}Edit vendor{% else %}Add vendor{% endif %}{% endblock %}
+{% block content %}
+<section class="page-heading"><a href="{% if editing %}{% url 'vendor_detail' vendor.pk %}{% else %}{% url 'vendor_list' %}{% endif %}">{% if editing %}{{ vendor.name }}{% else %}Vendors{% endif %}</a><h1>{% if editing %}Edit vendor{% else %}Add vendor{% endif %}</h1><p>Maintain internal vendor contact information. Use invented details only in this test workspace.</p></section>
+<section class="panel entry-panel"><form method="post" data-unsaved-form>
+{% csrf_token %}
+{% if form.errors %}<div class="notice" role="alert" tabindex="-1" data-error-summary><h2>Check your entries</h2>{{ form.non_field_errors }}<ul>{% for field in form %}{% if field.errors %}<li><a href="#{{ field.id_for_label }}">{{ field.label }}: {{ field.errors|striptags }}</a></li>{% endif %}{% endfor %}</ul></div>{% endif %}
+{% for field in form.hidden_fields %}{{ field }}{% endfor %}
+<div class="form-grid">{% for field in form.visible_fields %}{% include 'shared/field.html' with field=field %}{% endfor %}</div>
+<div class="actions entry-actions"><button class="button">Save vendor</button><a href="{% if editing %}{% url 'vendor_detail' vendor.pk %}{% else %}{% url 'vendor_list' %}{% endif %}">Cancel</a></div>
+</form></section>
+{% endblock %}

@@ -13,7 +13,7 @@ year/make/model identity; intake requires all four. Sale and trade VINs cannot m
 Reported actual/not-actual/exceeds statuses require a reading and explicit unit.
 An exemption claim is recorded for review, never inferred from age or treated as an
 approved exemption. No odometer certificate, title reassignment, payoff instruction,
-tax credit, payment or financial posting is generated.
+legally operative tax credit, payment or financial posting is generated.
 
 Inventory intake is an explicit review page, enabled only in development through
 `TRADE_INTAKE_DEMO_ENABLED` (defaults to DEBUG). Production remains gated. The page
@@ -23,9 +23,12 @@ That acknowledgement is not a legal ownership determination. Inventory creation
 runs through `inventory.intake.create_trade_vehicle`, with copied structured identity,
 Acquired status, a private source link and audit event. Customer, lienholder and
 payoff notes are not copied into inventory. Cost is not derived from allowance,
-payoff or equity; no ledger entry is posted. Existing same-dealer VINs block intake
-for review. This is not a global VIN uniqueness guarantee for all inventory entry
-paths. Historical/blank VIN handling remains supported in ordinary inventory.
+payoff or equity; no ledger entry is posted. Trade intake blocks same-dealer VINs
+using a case-insensitive exact stored comparison; unlike ordinary inventory's
+duplicate-review matcher, it does not trim surrounding whitespace on legacy stored
+VINs. A separate synthetic duplicate VIN report supports review, not merging or
+verified reacquisition. Neither workflow is a global VIN uniqueness guarantee.
+Historical/blank VIN handling remains supported in ordinary inventory.
 
 The locked parent and revision protect trade edits, worksheet edits, removal and
 intake. Repeated intake returns its existing inventory record; it cannot create a
@@ -33,7 +36,8 @@ second vehicle for the same trade. Intake identity is frozen in the original tra
 current inventory may later change independently. Every new deal event includes a
 versioned snapshot of retained active and archived trades. Prior events are untouched.
 Removal is reviewed before confirmation: it clears allowance/payoff, shows the
-resulting draft balance, requires a reason, retains the trade and its history, and
+resulting draft balance, including a recalculated supported draft tax estimate when
+applicable, requires a reason, retains the trade and its history, and
 leaves any acquired inventory intact. A negative resulting draft balance blocks
 removal. No-op edits create no history event.
 
@@ -48,14 +52,14 @@ not a certification or exhaustive legal analysis.
 | [49 CFR §580.17](https://www.ecfr.gov/current/title-49/subtitle-B/chapter-V/part-580/section-580.17) | Exemptions depend on vehicle and transfer circumstances. An entered exemption claim remains unverified; no age-only rule is coded. | Review the relevant effective provisions and exception evidence before treating any transfer as exempt. The eCFR title was current through October 21, 2026; its title-wide amendment date is not a section effective date. |
 | [Florida §319.14, 2026 compilation](https://www.leg.state.fl.us/statutes/index.cfm?App_mode=Display_Statute&URL=0300-0399/0319/Sections/0319.14.html) | Retain title brands and carry them into intake. Unknown is explicit. No cleared title, approved disclosure or advertising eligibility is inferred. | Reconcile effective amendments and applicable branding/disclosure evidence before live transfer or advertising output. |
 | [Florida §319.22, 2026 compilation](https://www.leg.state.fl.us/statutes/index.cfm?App_mode=Display_Statute&URL=0300-0399/0319/Sections/0319.22.html) | A saved proposal cannot establish ownership. Intake requires a separate review and is development-only. | Counsel/FLHSMV review of dealer acquisition, title/reassignment evidence, co-owner authority, liens and transfer requirements; exact effective-date reconciliation remains open. |
-| Florida tax and retail installment rules in the main plan | Allowance/payoff are worksheet adjustments only. Sales tax stays manually entered; no trade tax credit or statutory amount-financed calculation is added. | Reviewed DOR rules, transaction-specific tax cases and finance-charge classification before automated tax or financed disclosures. |
+| Florida tax and retail installment rules in the main plan | Allowance/payoff remain worksheet adjustments. The separately gated 2026 Florida draft tax estimate can use a confirmed qualifying trade allowance for supported cases; manual review remains available. It is not a filing determination or statutory amount-financed calculation. | Further DOR review, transaction-specific tax cases and finance-charge classification before live tax or financed disclosures. |
 
 The current statutory compilation may include provisions with different effective
 dates. Unresolved applicability and section-level effective dates keep live transfer,
 title, odometer, tax and payoff behavior disabled. The synthetic intake rehearsal
 is a development database operation, not a replacement for those workflows.
 
-## Verification
+## Historical verification (October 2026)
 
 Tests must cover tenant/role isolation, stale revisions across modules, negative
 equity and removal, no-op saves, audit rollback, duplicate/replayed/concurrent intake,

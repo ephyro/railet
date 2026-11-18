@@ -14,7 +14,7 @@ Research and implementation notes, October 23, 2026. Guidelines inform design de
 
 ## Validation to perform with dealership staff
 
-Ask a new user to add a synthetic vehicle, find it again, and correct its title information without coaching. Observe hesitation, wrong turns, errors and whether they know the task succeeded. Record actual results before setting performance targets or claiming the design is intuitive. Repeat for deals and payments only when implemented.
+Ask a new user to add a synthetic vehicle, find it again, and correct its title information without coaching. Observe hesitation, wrong turns, errors and whether they know the task succeeded. Record actual results before setting performance targets or claiming the design is intuitive. Synthetic deal and payment workflows now exist and can also be evaluated without coaching; they remain demonstrations, not live transactions. See [staff workflow test](STAFF_WORKFLOW_TEST.md).
 
 ## Sources
 

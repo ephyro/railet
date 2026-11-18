@@ -399,6 +399,19 @@ class SupportingFileWorkflowTests(TemporaryDealFileStorageMixin, TransactionTest
             self.assertEqual(hidden.status_code, 404)
             self.assertEqual(hidden["Cache-Control"], "private, no-store")
 
+    def test_download_roles_for_active_and_archived_files(self):
+        active = self.create_stored_file()
+        archived = self.create_stored_file(archived_at=timezone.now())
+        for user, can_read_archived in ((self.owner, True), (self.staff, True), (self.viewer, False), (self.foreign_user, False)):
+            self.client.force_login(user)
+            for record, allowed in ((active, user != self.foreign_user), (archived, can_read_archived)):
+                url = reverse("deal_file_download", args=[self.deal.pk, record.pk])
+                for method in (self.client.get, self.client.head):
+                    response = method(url)
+                    self.assertEqual(response.status_code, 200 if allowed else 404)
+                    self.assertEqual(response["Cache-Control"], "private, no-store")
+                    response.close()
+
     def test_viewers_cannot_upload_or_archive_and_csrf_is_required(self):
         deal_file = self.create_stored_file(title="No viewer action")
         self.client.force_login(self.viewer)
@@ -431,6 +444,31 @@ class SupportingFileWorkflowTests(TemporaryDealFileStorageMixin, TransactionTest
             self.assertEqual(response["Cache-Control"], "private, no-store")
         self.assertFalse(DealFileEvent.objects.filter(file=missing, action=DealFileEvent.Action.DOWNLOAD).exists())
 
+    def test_shared_storage_alias_is_not_downloadable(self):
+        own = self.create_stored_file()
+        other = self.create_stored_file(deal=self.foreign_deal, actor=self.foreign_user)
+        url = reverse("deal_file_download", args=[self.deal.pk, own.pk])
+        original = own.blob.name
+        DealFile.objects.filter(pk=own.pk).update(blob=other.blob.name.replace("deal-files/", "deal-files/./"))
+        self.assertEqual(self.client.get(url).status_code, 404)
+        DealFile.objects.filter(pk=own.pk).update(blob=original)
+        DealFile.objects.filter(pk=other.pk).update(blob=original.replace("deal-files/", "deal-files/./"))
+        response = self.client.head(url)
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertFalse(DealFileEvent.objects.filter(file=own, action="download").exists())
+
+    def test_download_refuses_changed_bytes_without_audit(self):
+        deal_file = self.create_stored_file()
+        with deal_file.blob.open("wb") as target:
+            target.write(b"tampered")
+        url = reverse("deal_file_download", args=[self.deal.pk, deal_file.pk])
+        for method in (self.client.get, self.client.head):
+            response = method(url)
+            self.assertEqual(response.status_code, 409)
+            self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertFalse(DealFileEvent.objects.filter(file=deal_file, action="download").exists())
+
     def test_download_audit_failure_closes_open_handle_and_fails_closed(self):
         deal_file = self.create_stored_file(title="Audit failure target")
         original_open = self._deal_file_storage.open
@@ -445,6 +483,29 @@ class SupportingFileWorkflowTests(TemporaryDealFileStorageMixin, TransactionTest
             with patch("documents.views.DealFileEvent.objects.create", side_effect=RuntimeError("audit unavailable")):
                 with self.assertRaises(RuntimeError):
                     self.client.get(reverse("deal_file_download", args=[self.deal.pk, deal_file.pk]))
+        self.assertEqual(len(opened), 1)
+        self.assertTrue(opened[0].closed)
+        self.assertFalse(DealFileEvent.objects.filter(file=deal_file, action=DealFileEvent.Action.DOWNLOAD).exists())
+
+    @override_settings(DEBUG=False, SECURE_SSL_REDIRECT=False, ALLOWED_HOSTS=['testserver'])
+    def test_download_audit_exception_closes_file_and_returns_private_500(self):
+        deal_file = self.create_stored_file(title="Synthetic audit failure")
+        original_open = self._deal_file_storage.open
+        opened = []
+
+        def capture_open(name, mode="rb"):
+            handle = original_open(name, mode)
+            opened.append(handle)
+            return handle
+
+        self.client.raise_request_exception = False
+        with patch.object(self._deal_file_storage, "open", side_effect=capture_open):
+            with patch("documents.views.DealFileEvent.objects.create", side_effect=RuntimeError("synthetic audit failure")):
+                with self.assertLogs("django.request", level="ERROR"):
+                    response = self.client.get(reverse("deal_file_download", args=[self.deal.pk, deal_file.pk]))
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.assertNotIn(PDF_BYTES, response.content)
         self.assertEqual(len(opened), 1)
         self.assertTrue(opened[0].closed)
         self.assertFalse(DealFileEvent.objects.filter(file=deal_file, action=DealFileEvent.Action.DOWNLOAD).exists())

@@ -81,6 +81,19 @@ class ServicingIntegrationTests(TestCase):
         args=dict(dealership_id=self.dealer.pk,book_id=self.book.pk,schedule_id=self.schedule.pk,actor=self.users['staff'],reason='Invented baseline reference',creation_key=uuid4(),expected_digest=self.schedule.result_sha256);args.update(kw)
         return select_baseline(**args)
 
+    def test_inactive_actor_cannot_save_or_retry(self):
+        from django.core.exceptions import PermissionDenied
+        actor=self.users['staff']; request_key=uuid4()
+        plan,_=self.choose(creation_key=request_key)
+        actor.is_active=False;actor.save(update_fields=['is_active'])
+        with self.assertRaises(PermissionDenied):self.choose(creation_key=request_key)
+        with self.assertRaises(PermissionDenied):
+            save_illustration(dealership_id=self.dealer.pk,book_id=self.book.pk,actor=actor,
+                inputs=self.schedule.inputs,expected_digest=self.schedule.result_sha256,creation_key=uuid4())
+        self.assertEqual(DemoServicingPlan.objects.count(),1)
+        self.assertEqual(DemoServicingPlan.objects.get().pk,plan.pk)
+        self.assertEqual(self.book.postings.count(),1)
+
     def test_selection_retry_immutable_and_no_money_changes(self):
         before=list(self.book.postings.values());request_key=uuid4()
         first,created=self.choose(creation_key=request_key);again,repeated=self.choose(creation_key=request_key)

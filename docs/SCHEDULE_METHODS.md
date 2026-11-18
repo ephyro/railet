@@ -14,7 +14,7 @@ Primary sources checked October 24, 2026:
 
 These uncertainties do not block reversible synthetic schedule comparisons. They **do** keep contractual allocation, rate/charge eligibility, APR disclosure, extra-payment treatment, payoff/refunds, statements and live servicing disabled. Existing manual receipts remain wholly unapplied.
 
-## Planned illustration profiles, not approved contract rules
+## Synthetic illustration profiles, not approved contract rules
 
 - **Precomputed / supplied charge v1:** input opening principal and a separately supplied synthetic total finance charge. Divide their sum over explicit due dates; round regular installments to cents with HALF_UP and put the exact residual in the final installment. Show remaining scheduled total, not principal outstanding or payoff. Do not allocate earnings, compute APR, derive a finance charge from APR, or imply that future finance charges are always collectible on early payoff.
 - **Daily simple / actual days / fixed 365 v1:** input annual contract rate (not APR), fixed regular installment, explicit term/dates. Forecast each on-time interval's simple interest on the remaining principal using actual elapsed days divided by fixed 365; round interest once per interval with HALF_UP, apply the assumed payment to that interest then principal for the illustration only. The last payment can shrink to clear the balance. Refuse negative-amortizing terms, a balloon greater than the regular payment, or early clearance before the requested count instead of silently changing terms. No fees, compounding, late/partial/extra payments or live allocation. Fixed 365 even in leap years is an explicit **illustration assumption**, not an inferred Florida contractual rule.
@@ -34,13 +34,13 @@ Saved illustrations belong to the synthetic ledger book, retain inputs/outputs a
 
 The owner selected monthly as the common BHPH frequency. New illustration forms suggest monthly; method selection remains explicit. Other supported cadences remain available.
 
-Draft BHPH and outside-finance proposals now independently record an optional proposed interest method (precomputed or simple). Existing proposals remain unchosen. Omitted fields preserve prior selections; explicit blank clears a proposal selection. This is draft metadata, not an amendment or an instruction to allocate receipts. Simple interest does not automatically select a contractual day basis.
+Draft BHPH and outside-finance proposals independently record an optional proposed interest method (precomputed or simple). Preexisting proposals were left unchosen by the migration; a method may subsequently be selected. Omitted fields preserve prior selections; explicit blank clears a proposal selection. This is draft metadata, not an amendment or an instruction to allocate receipts. Simple interest does not automatically select a contractual day basis.
 
 Saved synthetic illustrations retain inputs, outputs, calculation version and a canonical output digest. PostgreSQL and SQLite reject ordinary updates/deletes; PostgreSQL additionally checks insertion ownership and method/version metadata. Saving is transactional and idempotent, with signed actor/dealership-bound previews. Privileged database administrators can bypass database controls; this is not a tamper-proof claim.
 
-Deal history schema 5 includes the proposed method. New demonstration packets use snapshot schema 3 and template demo-summary-v3; retained earlier artifacts remain unchanged. Calculations and schedules do not post interest, reduce principal, allocate receipts or produce payoff quotes.
+Deal history schema 5 introduced the proposed method; ordinary new draft-event snapshots use schema 6. Packet schema 3/template `demo-summary-v3` was an earlier iteration; current new demonstration packets use snapshot schema 5/template `demo-summary-v6`. Retained earlier artifacts remain unchanged. Calculations and schedules do not post interest, reduce principal, allocate receipts or produce payoff quotes.
 
-Developer verification includes independent arithmetic references, cadence anchoring, final cents, invalid mixed methods, authorization/isolation, stale/tampered previews, immutable records and unchanged ledger postings. Synthetic browser checks covered both methods and 1440/390/320-pixel layouts. This is developer verification, not dealership staff or legal validation.
+Historical developer verification covered independent arithmetic references, cadence anchoring, final cents, invalid mixed methods, authorization/isolation, stale/tampered previews, immutable records and unchanged ledger postings. Synthetic browser checks covered both methods and 1440/390/320-pixel layouts. This is developer verification, not dealership staff or legal validation.
 
 ## Opt-in installment coverage simulation
 

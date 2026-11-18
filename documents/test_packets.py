@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: MPL-2.0
 from decimal import Decimal
 from unittest.mock import patch
+from uuid import uuid4
 from django.contrib.auth import get_user_model
+from django.core.exceptions import PermissionDenied
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from core.models import Dealership, Membership
@@ -73,6 +75,36 @@ class DemoPacketTests(TestCase):
         second=self.save(token)
         self.assertEqual(first.url,second.url)
         self.assertEqual(DemoDealPacket.objects.count(),1)
+
+    def test_direct_creation_and_retry_recheck_active_editor(self):
+        from .packets import create_packet, packet_source, source_digest
+        actor = self.users['staff']
+        args = dict(dealership_id=self.dealer.pk, deal_id=self.deal.pk, actor=actor, creation_key=uuid4(),
+                    expected_source=source_digest(packet_source(dealership_id=self.dealer.pk, deal_id=self.deal.pk)))
+        member = Membership.objects.get(user=actor)
+        for already_saved in (False, True):
+            if already_saved:
+                packet, created = create_packet(**args)
+                self.assertTrue(created)
+                frozen = (packet.html, packet.snapshot, packet.source_sha256, packet.artifact_sha256, packet.template_version)
+            for revoked in ('inactive', 'viewer', 'foreign', 'removed'):
+                with self.subTest(already_saved=already_saved, revoked=revoked):
+                    if revoked == 'inactive':
+                        get_user_model().objects.filter(pk=actor.pk).update(is_active=False)
+                    elif revoked == 'viewer':
+                        Membership.objects.filter(pk=member.pk).update(role='viewer')
+                    elif revoked == 'foreign':
+                        Membership.objects.filter(pk=member.pk).update(dealership=self.other)
+                    else:
+                        Membership.objects.filter(pk=member.pk).delete()
+                    with self.assertRaises(PermissionDenied):
+                        create_packet(**args)
+                    self.assertEqual(DemoDealPacket.objects.count(), int(already_saved))
+                    if already_saved:
+                        packet.refresh_from_db()
+                        self.assertEqual((packet.html, packet.snapshot, packet.source_sha256, packet.artifact_sha256, packet.template_version), frozen)
+                    get_user_model().objects.filter(pk=actor.pk).update(is_active=True)
+                    member, _ = Membership.objects.update_or_create(user=actor, defaults={'dealership': self.dealer, 'role': 'staff'})
 
     def test_source_changes_require_new_preview(self):
         token=self.token()
@@ -169,7 +201,7 @@ class DemoPacketTests(TestCase):
         self.assertContains(self.client.get(self.url),'456 Other Synthetic Lane')
         self.assertEqual(self.save().status_code,302)
         packet=DemoDealPacket.objects.get()
-        self.assertEqual(packet.template_version,'demo-summary-v5')
+        self.assertEqual(packet.template_version,'demo-summary-v6')
         self.assertEqual(packet.snapshot['schema_version'],5)
         self.assertEqual(packet.snapshot['buyer']['address']['city'],'Demo City')
         self.assertEqual(packet.snapshot['co_buyer']['address']['address_line1'],'456 Other Synthetic Lane')
@@ -179,7 +211,304 @@ class DemoPacketTests(TestCase):
         self.assertContains(artifact,'456 Other Synthetic Lane')
         self.assertNotContains(artifact,'Changed later')
 
+    def test_bhph_packet_keeps_rebuilt_sale_and_unverified_trade_separate_after_edits(self):
+        self.vehicle.title_brand = Vehicle.Brand.REBUILT
+        self.vehicle.save()
+        self.deal.deal_type = 'bhph'
+        self.deal.co_buyer = Customer.objects.create(
+            dealership=self.dealer, first_name='Casey', last_name='Demo')
+        self.deal.save()
+        trade = DraftTradeIn.objects.create(deal=self.deal, year=2018, make='Synthetic', model='Wagon')
+        self.assertEqual(self.save().status_code, 302)
+        packet = DemoDealPacket.objects.get()
+        original = packet.html.encode()
+
+        self.vehicle.title_brand = Vehicle.Brand.UNKNOWN
+        self.vehicle.save()
+        trade.title_brand = Vehicle.Brand.REBUILT
+        trade.save()
+        self.deal.deal_type = 'cash'
+        self.deal.co_buyer = None
+        self.deal.save()
+
+        packet.refresh_from_db()
+        snapshot = packet.snapshot
+        self.assertEqual(snapshot['deal_type'], 'Buy here, pay here')
+        self.assertEqual(snapshot['co_buyer']['name'], 'Casey Demo')
+        self.assertEqual(snapshot['vehicle']['facts']['Title brand as recorded'], 'Rebuilt')
+        self.assertEqual(snapshot['trade']['record_id'], trade.pk)
+        self.assertEqual(snapshot['trade']['facts']['Title brand as recorded'], 'Not verified')
+        artifact = self.client.get(reverse('demo_packet_artifact', args=[self.deal.pk, packet.pk]))
+        self.assertEqual(artifact.content, original)
+
     def test_address_edit_after_preview_requires_a_new_packet_preview(self):
         token=self.token();self.buyer.city='Changed address fact';self.buyer.save()
         self.assertEqual(self.save(token).status_code,409)
         self.assertFalse(DemoDealPacket.objects.exists())
+
+    def test_title_practice_uses_frozen_facts_and_respects_access_and_integrity(self):
+        self.vehicle.title_brand = 'rebuilt'
+        self.vehicle.save()
+        self.save()
+        packet = DemoDealPacket.objects.get()
+        url = reverse('title_practice', args=[self.deal.pk, packet.pk])
+        self.vehicle.title_brand = 'unknown'
+        self.vehicle.save()
+        response = self.client.get(url)
+        self.assertContains(response, 'Rebuilt')
+        self.assertContains(response, 'Not a state form')
+        self.assertContains(response, 'Not recorded')
+        self.assertIn('no-store', response['Cache-Control'])
+        self.client.force_login(self.users['foreign'])
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.force_login(self.users['staff'])
+        DemoDealPacket.objects.filter(pk=packet.pk).update(snapshot={'vehicle': {}})
+        self.assertEqual(self.client.get(url).status_code, 409)
+
+    @override_settings(DEMO_PACKETS_ENABLED=False)
+    def test_title_practice_disabled_with_demo_gate(self):
+        url = reverse('title_practice', args=[self.deal.pk, 1])
+        self.assertEqual(self.client.get(url).status_code, 404)
+
+    def test_paperwork_review_is_private_and_cannot_report_ready(self):
+        self.save()
+        packet = DemoDealPacket.objects.get()
+        url = reverse('paperwork_review', args=[self.deal.pk, packet.pk])
+        response = self.client.get(url)
+        self.assertContains(response, 'Practice only')
+        self.assertContains(response, 'not a complete list')
+        self.assertContains(response, 'Buyers Guide')
+        self.assertIn('no-store', response['Cache-Control'])
+        self.client.force_login(self.users['foreign'])
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.force_login(self.users['staff'])
+        DemoDealPacket.objects.filter(pk=packet.pk).update(snapshot={'vehicle': {}})
+        self.assertEqual(self.client.get(url).status_code, 409)
+
+    @override_settings(DEMO_PACKETS_ENABLED=False)
+    def test_paperwork_review_gate(self):
+        self.assertEqual(self.client.get(reverse('paperwork_review', args=[self.deal.pk, 1])).status_code, 404)
+
+    def test_finance_practice_preserves_terms_and_never_implies_disclosure(self):
+        self.deal.deal_type = 'bhph'
+        self.deal.save()
+        proposal = DraftFinanceProposal.objects.create(deal=self.deal, kind='bhph', annual_contract_rate=Decimal('8'))
+        self.save()
+        packet = DemoDealPacket.objects.get()
+        proposal.annual_contract_rate = Decimal('9')
+        proposal.save()
+        url = reverse('finance_practice', args=[self.deal.pk, packet.pk])
+        response = self.client.get(url)
+        self.assertContains(response, '8.0000%')
+        self.assertNotContains(response, '9.0000%')
+        self.assertContains(response, 'not an amount financed or APR')
+        self.client.force_login(self.users['foreign'])
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.force_login(self.users['staff'])
+        DemoDealPacket.objects.filter(pk=packet.pk).update(snapshot={})
+        self.assertEqual(self.client.get(url).status_code, 409)
+
+    @override_settings(DEMO_PACKETS_ENABLED=False)
+    def test_finance_practice_gate(self):
+        self.assertEqual(self.client.get(reverse('finance_practice', args=[self.deal.pk, 1])).status_code, 404)
+
+    def test_paperwork_inventory_tracks_saved_deal_type_and_missing_facts(self):
+        self.deal.deal_type = 'bhph'
+        self.deal.save()
+        self.save()
+        packet = DemoDealPacket.objects.get()
+        self.deal.deal_type = 'cash'
+        self.deal.save()
+        response = self.client.get(reverse('paperwork_review', args=[self.deal.pk, packet.pk]))
+        self.assertContains(response, 'Retail installment contract and credit disclosures')
+        self.assertContains(response, 'Title brand verification')
+        self.assertContains(response, 'VIN')
+        self.assertContains(response, 'not a preserved form or approval record')
+
+    def test_packet_freezes_research_inventory_and_preserves_exported_html(self):
+        from io import BytesIO
+        from zipfile import ZipFile
+        from .form_registry import REGISTRY_VERSION
+        self.deal.deal_type = 'bhph'
+        self.deal.save()
+        preview = self.client.get(self.url)
+        self.assertContains(preview, REGISTRY_VERSION)
+        self.assertContains(preview, 'Retail installment contract and credit disclosures')
+        self.save()
+        packet = DemoDealPacket.objects.get()
+        self.assertIn(REGISTRY_VERSION, packet.html)
+        self.assertIn('Retail installment contract and credit disclosures', packet.html)
+        self.assertIn('do not determine applicability', packet.html)
+        with patch('documents.packets.research_inventory', side_effect=AssertionError('Must not regenerate saved inventory')):
+            artifact = self.client.get(reverse('demo_packet_artifact', args=[self.deal.pk, packet.pk]))
+            exported = self.client.get(reverse('demo_packet_export', args=[self.deal.pk, packet.pk]))
+        self.assertEqual(artifact.content.decode(), packet.html)
+        with ZipFile(BytesIO(exported.content)) as archive:
+            self.assertEqual(archive.read('DEMO-summary.html'), artifact.content)
+
+    def test_registry_change_requires_new_preview(self):
+        token = self.token()
+        with patch('documents.packet_views.REGISTRY_VERSION', 'future-research-version'):
+            response = self.save(token)
+        self.assertEqual(response.status_code, 409)
+        self.assertContains(response, 'research inventory changed', status_code=409)
+        self.assertFalse(DemoDealPacket.objects.exists())
+
+    def test_registry_update_preserves_old_packet_and_export_bytes(self):
+        self.check_title_registry_update('fl-research-2026-11-07-v2', '07/23 on referenced form; verify current')
+
+    def test_v7_requires_fresh_preview_and_preserves_v6_artifact(self):
+        self.check_title_registry_update('fl-research-2026-11-10-v6',
+            'Indexed FLHSMV form marked Rev. 07/23; direct PDF unavailable at review, so current revision remains unconfirmed.')
+
+    def check_title_registry_update(self, old_version, old_revision):
+        from dataclasses import replace
+        from io import BytesIO
+        from zipfile import ZipFile
+        from .form_registry import REGISTRY_VERSION, research_inventory
+
+        def old_inventory(snapshot):
+            entries = research_inventory(snapshot)
+            for entry in entries:
+                if entry['reference'].key == 'title':
+                    entry['reference'] = replace(entry['reference'], revision=old_revision)
+            return entries
+
+        with patch('documents.packet_views.REGISTRY_VERSION', old_version), \
+             patch('documents.packets.REGISTRY_VERSION', old_version), \
+             patch('documents.packets.research_inventory', side_effect=old_inventory):
+            old_token = self.token()
+            self.assertEqual(self.save(old_token).status_code, 302)
+            stale_token = self.token()
+        old_packet = DemoDealPacket.objects.get()
+        old_html = old_packet.html.encode('utf-8')
+        self.assertIn(old_version.encode(), old_html)
+        self.assertIn(old_revision.encode(), old_html)
+        self.assertEqual(self.save(stale_token).status_code, 409)
+        self.assertEqual(self.save().status_code, 302)
+        new_packet = DemoDealPacket.objects.exclude(pk=old_packet.pk).get()
+        self.assertIn(REGISTRY_VERSION, new_packet.html)
+        self.assertIn('HSMV 82040 MV rev. 07/23', new_packet.html)
+        old_packet.refresh_from_db()
+        self.assertEqual(old_packet.html.encode('utf-8'), old_html)
+        artifact = self.client.get(reverse('demo_packet_artifact', args=[self.deal.pk, old_packet.pk]))
+        exported = self.client.get(reverse('demo_packet_export', args=[self.deal.pk, old_packet.pk]))
+        self.assertEqual(artifact.content, old_html)
+        with ZipFile(BytesIO(exported.content)) as archive:
+            self.assertEqual(archive.read('DEMO-summary.html'), old_html)
+
+    def test_odometer_research_revision_preserves_v3_artifact_and_requires_fresh_preview(self):
+        from dataclasses import replace
+        from io import BytesIO
+        from zipfile import ZipFile
+        from .form_registry import REGISTRY_VERSION, research_inventory
+
+        old_version = 'fl-research-2026-11-07-v3'
+        def old_inventory(snapshot):
+            entries = [entry for entry in research_inventory(snapshot)
+                       if entry['reference'].key not in ('dealer-reassignment', 'secure-odometer-poa')]
+            for entry in entries:
+                if entry['reference'].key == 'odometer':
+                    entry['reference'] = replace(entry['reference'], name='Legacy odometer research topic',
+                        revision='Depends on document; verify current')
+            return entries
+
+        with patch('documents.packet_views.REGISTRY_VERSION', old_version), \
+             patch('documents.packets.REGISTRY_VERSION', old_version), \
+             patch('documents.packets.research_inventory', side_effect=old_inventory):
+            self.assertEqual(self.save(self.token()).status_code, 302)
+            stale = self.token()
+        old_packet = DemoDealPacket.objects.get()
+        original_html = old_packet.html.encode('utf-8')
+        original_snapshot = old_packet.snapshot
+        self.assertIn(b'Legacy odometer research topic', original_html)
+        self.assertEqual(self.save(stale).status_code, 409)
+        self.assertEqual(self.save().status_code, 302)
+        new_packet = DemoDealPacket.objects.exclude(pk=old_packet.pk).get()
+        self.assertIn(REGISTRY_VERSION, new_packet.html)
+        self.assertIn('Secure odometer power of attorney', new_packet.html)
+        self.assertIn('Dealer title reassignment supplement', new_packet.html)
+        old_packet.refresh_from_db()
+        self.assertEqual(old_packet.html.encode('utf-8'), original_html)
+        self.assertEqual(old_packet.snapshot, original_snapshot)
+        artifact = self.client.get(reverse('demo_packet_artifact', args=[self.deal.pk, old_packet.pk]))
+        exported = self.client.get(reverse('demo_packet_export', args=[self.deal.pk, old_packet.pk]))
+        self.assertEqual(artifact.content, original_html)
+        with ZipFile(BytesIO(exported.content)) as archive:
+            self.assertEqual(archive.read('DEMO-summary.html'), original_html)
+
+    def test_provenance_correction_preserves_v4_packet_and_invalidates_preview(self):
+        from dataclasses import replace
+        from io import BytesIO
+        from zipfile import ZipFile
+        from .form_registry import REGISTRY_VERSION, research_inventory
+
+        def v4_inventory(snapshot):
+            entries = research_inventory(snapshot)
+            for entry in entries:
+                if entry['reference'].key == 'secure-odometer-poa':
+                    entry['reference'] = replace(entry['reference'],
+                        revision='FLHSMV TL-02 marked rev. 03/25, effective immediately; current procedure and secure-form revision unconfirmed.')
+            return entries
+
+        with patch('documents.packet_views.REGISTRY_VERSION', 'fl-research-2026-11-10-v4'), \
+             patch('documents.packets.REGISTRY_VERSION', 'fl-research-2026-11-10-v4'), \
+             patch('documents.packets.research_inventory', side_effect=v4_inventory):
+            self.assertEqual(self.save(self.token()).status_code, 302)
+            stale = self.token()
+        old = DemoDealPacket.objects.get()
+        old_html, old_snapshot = old.html.encode(), old.snapshot
+        self.assertIn(b'FLHSMV TL-02 marked rev. 03/25', old_html)
+        self.assertEqual(self.save(stale).status_code, 409)
+        self.assertEqual(self.save().status_code, 302)
+        new = DemoDealPacket.objects.exclude(pk=old.pk).get()
+        self.assertIn(REGISTRY_VERSION, new.html)
+        self.assertIn('Secure HSMV 82995 form revision remains unverified', new.html)
+        old.refresh_from_db()
+        self.assertEqual((old.html.encode(), old.snapshot), (old_html, old_snapshot))
+        artifact = self.client.get(reverse('demo_packet_artifact', args=[self.deal.pk, old.pk]))
+        exported = self.client.get(reverse('demo_packet_export', args=[self.deal.pk, old.pk]))
+        self.assertEqual(artifact.content, old_html)
+        with ZipFile(BytesIO(exported.content)) as archive:
+            self.assertEqual(archive.read('DEMO-summary.html'), old_html)
+
+    def test_credit_research_v6_requires_fresh_preview_and_preserves_v5_packet(self):
+        from dataclasses import replace
+        from io import BytesIO
+        from zipfile import ZipFile
+        from .form_registry import REGISTRY_VERSION, research_inventory
+
+        self.deal.deal_type = 'bhph'
+        self.deal.save()
+        def v5_inventory(snapshot):
+            entries = research_inventory(snapshot)
+            for entry in entries:
+                if entry['reference'].key == 'retail-installment':
+                    entry['reference'] = replace(entry['reference'], publisher='Not selected',
+                        revision='Not selected', rights='Template rights not established',
+                        applicability='Review whether closed-end credit rules and Florida retail installment requirements apply.',
+                        review='Obtain reviewed contract; independently verify figures, disclosures, signing and delivery.')
+            return entries
+
+        with patch('documents.packet_views.REGISTRY_VERSION', 'fl-research-2026-11-10-v5'), \
+             patch('documents.packets.REGISTRY_VERSION', 'fl-research-2026-11-10-v5'), \
+             patch('documents.packets.research_inventory', side_effect=v5_inventory):
+            self.assertEqual(self.save(self.token()).status_code, 302)
+            stale = self.token()
+        old = DemoDealPacket.objects.get()
+        old_html, old_snapshot, old_hash = old.html.encode(), old.snapshot, old.artifact_sha256
+        self.assertIn(b'Obtain reviewed contract; independently verify figures', old_html)
+        self.assertEqual(self.save(stale).status_code, 409)
+        self.assertEqual(DemoDealPacket.objects.count(), 1)
+        self.assertEqual(self.save().status_code, 302)
+        new = DemoDealPacket.objects.exclude(pk=old.pk).get()
+        self.assertIn(REGISTRY_VERSION, new.html)
+        self.assertIn('APR as annual credit cost rate', new.html)
+        self.assertIn('total of payments as scheduled payments', new.html)
+        old.refresh_from_db()
+        self.assertEqual((old.html.encode(), old.snapshot, old.artifact_sha256), (old_html, old_snapshot, old_hash))
+        artifact = self.client.get(reverse('demo_packet_artifact', args=[self.deal.pk, old.pk]))
+        exported = self.client.get(reverse('demo_packet_export', args=[self.deal.pk, old.pk]))
+        self.assertEqual(artifact.content, old_html)
+        with ZipFile(BytesIO(exported.content)) as archive:
+            self.assertEqual(archive.read('DEMO-summary.html'), old_html)

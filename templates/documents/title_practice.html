@@ -1,0 +1,25 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}
+{% block title %}Title preparation practice{% endblock %}
+{% block content %}
+<section class="page-heading">
+  <a href="{% url 'demo_packet_detail' packet.deal_id packet.pk %}">Back to demo packet</a>
+  <h1>Title preparation practice</h1>
+  <p>Practice only · Not a state form · Not for filing or signature</p>
+</section>
+<section class="panel">
+  <p class="notice"><strong>Synthetic data only.</strong> This worksheet is not an application and does not check whether a transaction is ready to file. The official form requires additional information.</p>
+  <p>These details come from demo packet #{{ packet.pk }}, saved {{ packet.created_at|date:'M j, Y · g:i A' }}. This worksheet is generated using the current display template; it is not a saved or finalized document.</p>
+  <h2>Vehicle</h2>
+  <dl>
+    <dt>Vehicle</dt><dd>{{ snapshot.vehicle.description|default:'Not recorded' }}</dd>
+    {% for label, value in snapshot.vehicle.facts.items %}<dt>{{ label }}</dt><dd>{{ value|default:'Not recorded' }}</dd>{% empty %}<dt>Vehicle details</dt><dd>Not recorded in this snapshot</dd>{% endfor %}
+  </dl>
+  <h2>Buyer</h2>
+  <dl><dt>Name</dt><dd>{{ snapshot.buyer.name|default:'Not recorded' }}</dd>
+    <dt>Address</dt><dd>{% for line in snapshot.buyer.address_lines %}{{ line }}{% if not forloop.last %}<br>{% endif %}{% empty %}Not recorded{% endfor %}</dd></dl>
+  {% if snapshot.co_buyer %}<h2>Co-buyer</h2><p>{{ snapshot.co_buyer.name|default:'Not recorded' }}</p>{% endif %}
+  <p>For reference, see the <a href="https://www.flhsmv.gov/pdf/forms/82040.pdf" target="_blank" rel="noopener noreferrer">official Florida motor vehicle title application (HSMV 82040 MV)</a>. Confirm the correct form and requirements for each transaction.</p>
+  <p><strong>Practice only · Not a state form · Not for filing or signature</strong></p>
+</section>
+{% endblock %}

@@ -1,11 +1,26 @@
 # SPDX-License-Identifier: MPL-2.0
 from django.contrib.auth import get_user_model
+from importlib import import_module
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TransactionTestCase
 
 
 class AddressMigrationTests(TransactionTestCase):
+    def _fixture_teardown(self):
+        if connection.vendor != 'sqlite':
+            return super()._fixture_teardown()
+        # SQLite's test-only flush issues DELETE; temporarily remove and restore
+        # the guard only around cleanup of this disposable migration-test DB.
+        migration = import_module('customers.migrations.0010_customer_event_immutable')
+        with connection.schema_editor() as editor:
+            migration.backward(None, editor)
+        try:
+            return super()._fixture_teardown()
+        finally:
+            with connection.schema_editor() as editor:
+                migration.forward(None, editor)
+
     def test_existing_customer_and_history_survive_with_unknown_address(self):
         executor=MigrationExecutor(connection)
         try:

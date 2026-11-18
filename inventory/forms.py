@@ -54,23 +54,43 @@ class VehicleForm(forms.ModelForm):
         self.original_normalized_vin = normalize_vin(getattr(instance, "vin", ""))
         self.duplicate_matches = []
         # Older inventory forms must preserve mileage that they never displayed.
-        if args and args[0] is not None:
-            data = args[0].copy()
+        posted_data = args[0] if args else kwargs.get("data")
+        if posted_data is not None:
+            data = posted_data.copy()
             instance = kwargs.get("instance") or Vehicle()
-            for name in ODOMETER_FIELDS:
+            for name in (*ODOMETER_FIELDS, "asking_price", "acquired_on", "sold_on"):
                 if name not in data:
                     value = getattr(instance, name)
                     data[name] = "" if value is None else value
-            args = (data, *args[1:])
+            if args:
+                args = (data, *args[1:])
+            else:
+                kwargs["data"] = data
         super().__init__(*args, **kwargs)
+        self.fields["recon_cost"].label = "Unitemized reconditioning cost"
+        self.fields["recon_cost"].help_text = "Separate from itemized vehicle costs. Do not enter the same expense in both."
         if self.instance.pk:
             self.fields["revision"].required = True
             self.initial["revision"] = self.instance.revision
 
     class Meta:
         model = Vehicle
-        fields = ["stock_number", "vin", "year", "make", "model", "status", "title_brand", "title_received", *ODOMETER_FIELDS, "acquisition_cost", "recon_cost", "notes"]
-        widgets = {"notes": forms.Textarea(attrs={"rows": 4})}
+        fields = ["stock_number", "vin", "year", "make", "model", "status", "acquired_on", "sold_on", "title_brand", "title_received", *ODOMETER_FIELDS, "acquisition_cost", "recon_cost", "asking_price", "notes"]
+        widgets = {"notes": forms.Textarea(attrs={"rows": 4}), "acquired_on": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"), "sold_on": forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d")}
+    def clean_acquired_on(self):
+        from django.utils import timezone
+        value = self.cleaned_data["acquired_on"]
+        if value and value > timezone.localdate():
+            raise forms.ValidationError("Enter today or an earlier acquisition date.")
+        return value
+
+    def clean_sold_on(self):
+        from django.utils import timezone
+        value = self.cleaned_data["sold_on"]
+        if value and value > timezone.localdate():
+            raise forms.ValidationError("Enter today or an earlier sale date.")
+        return value
+
     def clean_stock_number(self):
         return self.cleaned_data["stock_number"].strip().upper()
     def clean_vin(self):
@@ -78,6 +98,13 @@ class VehicleForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        sold_on = cleaned.get("sold_on")
+        acquired_on = cleaned.get("acquired_on")
+        status = cleaned.get("status")
+        if sold_on and status != Vehicle.Status.SOLD:
+            self.add_error("sold_on", "Record a sale date only when the vehicle status is Sold.")
+        elif sold_on and acquired_on and sold_on < acquired_on:
+            self.add_error("sold_on", "Sale date must be on or after the acquisition date.")
         vin = normalize_vin(cleaned.get("vin"))
         changed_identity = bool(vin) and (
             not self.instance.pk or vin != self.original_normalized_vin

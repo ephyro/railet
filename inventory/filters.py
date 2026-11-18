@@ -2,6 +2,12 @@
 from core.filtering import FilterField as Field, FilterSchema
 from .models import Vehicle
 
+class CostCentsField(Field):
+    """Keep the UI in dollars and compare exact integer-cent totals."""
+    def convert(self, value):
+        return int(super().convert(value) * 100)
+
+
 SCHEMA = FilterSchema(
     resource="inventory", title="Vehicles", route="inventory",
     search_hint="Stock number, VIN, year, make or model",
@@ -12,7 +18,8 @@ SCHEMA = FilterSchema(
         Field("make", "Make", "make"), Field("model", "Model", "model"),
         Field("year", "Model year", "year", "integer"),
         Field("stock", "Stock number", "stock_number"), Field("vin", "VIN", "vin"),
-        Field("cost", "Total investment", "filter_total_cost", "decimal"),
+        CostCentsField("cost", "Total investment", "filter_total_cost", "decimal"),
+        Field("asking", "Asking price", "asking_price", "decimal"),
         Field("photos", "Has photos", "filter_has_photos", "boolean"),
         Field("updated", "Last updated", "updated_at__date", "date"),
     ),

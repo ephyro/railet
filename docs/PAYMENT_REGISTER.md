@@ -73,3 +73,15 @@ direct database insertion guards, preview/edit/confirm, empty-day navigation and
 export v4. Existing timezone/DST, scope, row-limit, pagination, servicing and
 concurrency cases remain passing. Final method rows put Cash/Check/Other before
 Not recorded; default new entry still truthfully starts at Not recorded.
+
+## Filtered CSV export (November 2026)
+
+`payment_register` also supports a formula-safe CSV download (`?format=csv`) of
+the same bounded capture (`MAX_ROWS = 5,000`, up to `92` days). Every exported
+row is explicitly labeled `Synthetic · unapplied` with date basis, range,
+account/entry IDs, original receipt reference for reversals, manual payment
+method, signed USD amount, local recorded timestamp, and effective date.
+Invalid filters or captures exceeding the row limit return HTTP 400 without
+partial CSV output. This CSV is an unapplied synthetic activity view, not a
+bank settlement report, payment-allocation ledger, or complete dealership
+backup.

@@ -7,12 +7,13 @@ from uuid import uuid4
 from unittest import skipUnless
 from unittest.mock import patch
 from django.contrib.auth import get_user_model
-from django.db import connection,close_old_connections,OperationalError
+from django.db import connection,close_old_connections,OperationalError,transaction
 from django.test import Client,TransactionTestCase,override_settings
 from django.urls import reverse
+from core.models import Membership
 from . import account_exports,test_accounts as fixtures
 from .services import record_receipt
-from .models import DemoAccountExport
+from .models import DemoAccountExport, DemoBook
 
 
 @skipUnless(connection.vendor=='postgresql','PostgreSQL row locks required')
@@ -20,6 +21,57 @@ from .models import DemoAccountExport
 class AccountExportConcurrencyTests(TransactionTestCase):
     def setUp(self):
         fixtures.AccountWorkspaceTests.setUpTestData.__func__(type(self))
+
+    def test_export_rechecks_identity_after_book_and_membership_lock_waits(self):
+        actor = self.users['staff']
+        member = Membership.objects.get(user=actor)
+        client = Client()
+        client.force_login(actor)
+        url = reverse('account_export_download', args=[self.book.pk])
+        for lock_point in ('book', 'identity'):
+            for revoked in ('inactive', 'foreign', 'removed', 'invalid_role'):
+                for method in ('get', 'head'):
+                    with self.subTest(lock_point=lock_point, revoked=revoked, method=method):
+                        attempted = Event()
+                        def download():
+                            close_old_connections()
+                            try:
+                                def signal_lock(execute, sql, params, many, context):
+                                    target = 'finance_demobook' if lock_point == 'book' else 'core_membership'
+                                    if target in sql and 'FOR UPDATE' in sql:
+                                        attempted.set()
+                                    return execute(sql, params, many, context)
+                                with connection.execute_wrapper(signal_lock):
+                                    response = getattr(client, method)(url)
+                                    return response.status_code, response.content, response.get('Cache-Control', '')
+                            finally:
+                                close_old_connections()
+
+                        with patch('finance.account_exports.build_bundle', side_effect=AssertionError('Unauthorized ZIP preparation')), ThreadPoolExecutor(max_workers=1) as pool:
+                            with transaction.atomic():
+                                if lock_point == 'book':
+                                    DemoBook.objects.select_for_update().get(pk=self.book.pk)
+                                elif revoked == 'inactive':
+                                    get_user_model().objects.select_for_update().get(pk=actor.pk)
+                                else:
+                                    Membership.objects.select_for_update().get(pk=member.pk)
+                                future = pool.submit(download)
+                                self.assertTrue(attempted.wait(timeout=20))
+                                if revoked == 'inactive':
+                                    get_user_model().objects.filter(pk=actor.pk).update(is_active=False)
+                                elif revoked == 'foreign':
+                                    Membership.objects.filter(pk=member.pk).update(dealership=self.other)
+                                elif revoked == 'removed':
+                                    Membership.objects.filter(pk=member.pk).delete()
+                                else:
+                                    Membership.objects.filter(pk=member.pk).update(role='invalid')
+                            status, body, cache = future.result(timeout=20)
+                        self.assertEqual(status, 403)
+                        self.assertEqual(body, b'')
+                        self.assertIn('no-store', cache)
+                        self.assertEqual(DemoAccountExport.objects.count(), 0)
+                        get_user_model().objects.filter(pk=actor.pk).update(is_active=True)
+                        member, _ = Membership.objects.update_or_create(user=actor, defaults={'dealership': self.dealer, 'role': 'staff'})
 
     def test_receipt_cannot_interleave_with_export_capture(self):
         locked=Event();release=Event();original=account_exports.build_bundle

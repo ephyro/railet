@@ -71,6 +71,23 @@ class AccountWorkspaceTests(TestCase):
         self.assertNotContains(response,'Changed later')
         self.assertEqual(DemoPosting.objects.count(),1)
 
+    def test_inactive_actor_cannot_link_or_repeat_saved_link(self):
+        from django.core.exceptions import PermissionDenied
+        from deals.account_context import account_draft_snapshot
+        from .account_services import link_draft
+        from .schedule_services import result_digest
+        actor=self.users['staff']
+        args=dict(dealership_id=self.dealer.pk,book_id=self.book.pk,deal_id=self.deal.pk,
+                  actor=actor,expected_digest=result_digest(account_draft_snapshot(self.deal)))
+        actor.is_active=False;actor.save(update_fields=['is_active'])
+        with self.assertRaises(PermissionDenied):link_draft(**args)
+        actor.is_active=True;actor.save(update_fields=['is_active'])
+        link_draft(**args)
+        actor.is_active=False;actor.save(update_fields=['is_active'])
+        with self.assertRaises(PermissionDenied):link_draft(**args)
+        self.assertEqual(DemoAccountContext.objects.count(),1)
+        self.assertEqual(DemoPosting.objects.count(),1)
+
     def test_changed_preview_requires_review(self):
         token=self.preview()
         self.proposal.interest_method='simple';self.proposal.save()

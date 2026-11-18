@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MPL-2.0
 from django.contrib import messages
 from django.conf import settings
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
 from django.db.models import Prefetch
@@ -20,25 +20,35 @@ from .filters import SCHEMA
 from core.filter_views import filter_context
 from inventory.models import VehiclePhoto
 from inventory.inline import InlineVehicleForm,create_inline_vehicle
-from core.models import Dealership
+from core.models import Dealership, Membership
 from .tax_forms import TAX_FIELDS
 
 def records(request):
     return DraftDeal.objects.filter(dealership=request.member.dealership)
+
+
+def _require_locked_editor(request):
+    if not Membership.objects.select_for_update().filter(
+        user_id=request.user.pk, user__is_active=True, dealership_id=request.member.dealership_id,
+        role__in=[Membership.Role.OWNER, Membership.Role.STAFF],
+    ).exists():
+        raise PermissionDenied
 
 @member_view
 def deal_list(request):
     filters = filter_context(request, SCHEMA)
     state = filters["filter_state"]
     query = state.query
-    drafts = state.apply(search_drafts(request.member.dealership, query)).select_related("vehicle", "buyer", "co_buyer").prefetch_related(Prefetch("vehicle__photos", queryset=VehiclePhoto.objects.filter(archived_at__isnull=True).order_by("-is_primary", "pk"), to_attr="visible_photos"))
+    drafts = state.apply(search_drafts(request.member.dealership, query)).select_related("vehicle", "buyer", "co_buyer", "demo_completion__packet").prefetch_related(Prefetch("vehicle__photos", queryset=VehiclePhoto.objects.filter(archived_at__isnull=True).order_by("-is_primary", "pk"), to_attr="visible_photos"))
     scope = state.extra.get("scope") or "active"
-    if scope != "all":
-        drafts = drafts.filter(archived_at__isnull=scope == "active")
+    if scope == "completed":
+        drafts = drafts.filter(demo_completion__isnull=False)
+    elif scope != "all":
+        drafts = drafts.filter(archived_at__isnull=scope == "active", demo_completion__isnull=True)
     page = Paginator(drafts, 25).get_page(request.GET.get("page"))
     from urllib.parse import urlencode
     tabs=[]
-    for value,label in (('active','In progress'),('archived','Archived'),('all','All deals')):
+    for value,label in (('active','In progress'),('completed','Completed rehearsals'),('archived','Archived'),('all','All deals')):
         parameters={key:list(values) for key,values in state.parameters.items()}
         parameters['scope']=[value]
         tabs.append({'query':urlencode(parameters,doseq=True),'label':label,'active':scope==value})
@@ -53,9 +63,16 @@ def deal_detail(request, pk):
     if active_section not in ("structure", "notes", "history"):
         active_section = "structure"
     with transaction.atomic():
+        if request.method == "POST":
+            Dealership.objects.select_for_update().get(pk=request.member.dealership_id)
         choices = records(request)
         choices = choices.select_for_update() if request.method == "POST" else choices.select_related("vehicle", "buyer", "co_buyer")
         deal = get_object_or_404(choices, pk=pk)
+        if request.method == "POST":
+            _require_locked_editor(request)
+        if deal.__class__.objects.filter(pk=deal.pk,demo_completion__isnull=False).exists():
+            if request.method != "POST":return redirect('deal_completion',pk=deal.pk)
+            return render(request,'deals/completed_blocked.html',context(request,deal=deal),status=409)
         if request.method == "POST" and deal.archived_at:
             return render(request, "deals/archived_blocked.html", context(request, deal=deal), status=409)
         from copy import deepcopy
@@ -115,6 +132,11 @@ def editor(request, pk=None):
     with transaction.atomic():
         if request.method=="POST":Dealership.objects.select_for_update().get(pk=request.member.dealership_id)
         deal = get_object_or_404(records(request).select_for_update(), pk=pk) if pk else DraftDeal(dealership=request.member.dealership)
+        if request.method == "POST":
+            _require_locked_editor(request)
+        if pk and DraftDeal.objects.filter(pk=pk,demo_completion__isnull=False).exists():
+            if request.method != "POST":return redirect('deal_completion',pk=pk)
+            return render(request,'deals/completed_blocked.html',context(request,deal=deal),status=409)
         if pk and deal.archived_at:
             return render(request, "deals/archived_blocked.html", context(request, deal=deal), status=409)
         posted = request.POST if request.method == "POST" else None
@@ -127,6 +149,9 @@ def editor(request, pk=None):
                     continue
                 if selected:
                     form.initial[field_name] = selected.pk
+                    if field_name == "vehicle" and selected.asking_price is not None:
+                        # An editable starting suggestion; later inventory edits never rewrite a deal.
+                        form.initial["sale_price"] = selected.asking_price
         mode = form["customer_mode"].value() or "existing"
         new_customer = CustomerForm(posted if mode == "new" else None, prefix="new", dealership=request.member.dealership)
         vehicle_mode=form['vehicle_mode'].value() or 'existing'

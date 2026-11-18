@@ -6,12 +6,14 @@ import io
 import json
 import zipfile
 from decimal import Decimal
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods
 from core.access import member_view, context
+from core.models import Dealership, Membership
 from customers.records import address_snapshot
 from .models import DemoAccountContext, DemoAccountExport
 from .views import demo_page, scoped_book
@@ -130,7 +132,14 @@ def review(request,pk):
 @require_http_methods(['GET','HEAD'])
 @transaction.atomic
 def download(request,pk):
+    if not Dealership.objects.select_for_update().filter(pk=request.member.dealership_id).exists():
+        raise PermissionDenied
     book=scoped_book(request,pk,locked=True)
+    if not Membership.objects.select_for_update().filter(
+        user_id=request.user.pk, user__is_active=True, dealership_id=book.dealership_id,
+        role__in=Membership.Role.values,
+    ).exists():
+        raise PermissionDenied
     if request.method=='HEAD':
         response=HttpResponse(content_type='application/zip')
     else:

@@ -6,9 +6,10 @@ classifications on the existing draft, using its authoritative vehicle and custo
 links. Existing drafts migrate to `undecided`; no cash status is inferred.
 
 Each financed kind has its own optional proposal, unique per draft and kind.
-Switching type preserves both proposals. Saving includes submitted edits to inactive
-proposals, while omitted proposal forms preserve stored values. Invalid inactive
-entries are revealed and block the entire save. Unknown values stay blank; an
+Switching type preserves both proposals. The saved-deal workspace validates and
+saves each submitted included proposal, including inactive ones; the party/create
+form binds only the selected type. Omitted proposals preserve stored values.
+Invalid bound entries block the entire save. Unknown values stay blank; an
 explicit zero contract rate remains zero. Biweekly and semimonthly are distinct.
 The creditor legal name is entered, never inferred from a dealership display name.
 
@@ -19,8 +20,11 @@ retained proposals; previous event JSON is untouched. No-op saves add no event.
 Database constraints enforce valid kinds, unique proposals, positive payment counts,
 nonnegative rates and known frequencies. Decimal rate precision and field storage
 bounds are technical constraints, not statutory limits. No legal rate limit is
-inferred from these fields. No APR, payment amount, amortization, accrual or
-origination is calculated. Saving cannot create a contract, loan or payment.
+inferred from these fields. A gated deal-desk preview can illustrate monthly
+payments for supported precomputed or simple-interest inputs, and a separate
+account module can save synthetic schedule illustrations. These are not APR,
+posted accrual, an actual contract schedule or loan origination. Saving a proposal
+cannot create a contract, loan or payment. See [schedule methods](SCHEDULE_METHODS.md).
 
 ## Compliance register and production gates
 
@@ -30,7 +34,7 @@ Primary sources reviewed October 23, 2026, for this development scope:
 | --- | --- | --- |
 | [Regulation Z §1026.18](https://www.consumerfinance.gov/rules-policy/regulations/1026/18/) and [§1026.22](https://www.consumerfinance.gov/rules-policy/regulations/1026/22/) | Closed-end disclosures distinguish amount financed, finance charge, APR and payment schedule. The worksheet remains “draft balance”; proposed annual contract rate is explicitly distinct from APR. No disclosures are generated. | Verify transaction coverage, section effective dates, complete fee classification and independent calculation cases before calculations or consummation. |
 | [Florida §520.07, 2026 compilation](https://www.leg.state.fl.us/statutes/index.cfm?App_mode=Display_Statute&URL=0500-0599/0520/Sections/0520.07.html) | Retail installment contract completion, execution, delivery, and financial disclosures require a separate reviewed workflow. Partial drafts cannot be signed or finalized. | Review applicable amendments, effective dates, forms, licensing and delivery controls before live contracts. |
-| [Florida §520.08, 2026 compilation](https://www.flsenate.gov/Laws/Statutes/2026/520.08) | Vehicle-class finance-charge provisions must not be treated as a universal APR cap. No statutory cap or financing calculation is implemented here. | Resolve applicable vehicle class, method, dates and limits with counsel and independent reference cases. |
+| [Florida §520.08, 2026 compilation](https://www.flsenate.gov/Laws/Statutes/2026/520.08) | Vehicle-class finance-charge provisions must not be treated as a universal APR cap. No statutory cap or legally authoritative financing calculation is implemented here. | Resolve applicable vehicle class, method, dates and limits with counsel and independent reference cases. |
 | [Regulation B §1002.2](https://www.consumerfinance.gov/rules-policy/regulations/1002/2/) | Calling a record a draft does not determine application status; actual practices matter. No live credit application, decision or adverse-action workflow is enabled. | Review application/inquiry handling, notices, retention and decision controls before live credit workflows. |
 
 The eCFR title 12 compilation consulted was current through October 21, 2026;
@@ -40,7 +44,7 @@ given transaction date. Section-level amendment/effective-date reconciliation an
 legal/financial review remain unresolved production gates. These records establish
 safe synthetic development controls, not legal certification or production readiness.
 
-## Verification
+## Historical verification (October 2026)
 
 Automated cases cover blank versus zero, separate proposals retained through type
 switches, invalid inactive input preserving work without partial writes, stale
@@ -58,4 +62,4 @@ and no horizontal page overflow at 1440, 390 and 320 pixels. A separate syntheti
 draft was used; the owner's existing review deal was not edited.
 
 
-Draft proposals can explicitly record Precomputed or Simple interest separately for BHPH and outside financing. Existing records remain unchosen. The choice is proposed metadata only; it does not activate calculations or change posted obligations. See SCHEDULE_METHODS.md.
+Draft proposals can explicitly record Precomputed or Simple interest separately for BHPH and outside financing. Older records were not assigned a method by migration. The choice can drive the optional monthly draft illustration but does not change posted obligations or select an actual contract method. See SCHEDULE_METHODS.md.

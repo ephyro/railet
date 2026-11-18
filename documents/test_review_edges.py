@@ -3,6 +3,7 @@
 import uuid
 from unittest.mock import patch
 from django.contrib.auth import get_user_model
+from django.core.exceptions import PermissionDenied
 from django.db import DatabaseError, connection, transaction
 from django.test import TransactionTestCase, override_settings
 from django.urls import reverse
@@ -37,9 +38,41 @@ class SupportingFileBoundaryTests(file_scenarios.TemporaryDealFileStorageMixin, 
         args.update(changes)
         return upload_deal_file(**args)[0]
 
+    def test_service_denies_viewer_foreign_inactive_and_disabled_before_write_or_retry(self):
+        stored = self.upload()
+        original_events = DealFileEvent.objects.count()
+        foreign = get_user_model().objects.create_user(username='synthetic-foreign-editor')
+        Membership.objects.create(user=foreign, dealership=self.foreign, role='owner')
+        inactive = get_user_model().objects.create_user(username='synthetic-inactive-editor', is_active=False)
+        Membership.objects.create(user=inactive, dealership=self.dealer, role='staff')
+        for actor in (self.viewer, foreign, inactive):
+            with self.subTest(actor=actor.username), self.assertRaises(PermissionDenied):
+                upload_deal_file(deal_id=self.deal.pk, dealership_id=self.dealer.pk, actor=actor,
+                    title=stored.title, upload_key=stored.upload_key, pdf_bytes=file_scenarios.PDF_BYTES)
+            with self.subTest(new_upload_actor=actor.username), patch.object(self._deal_file_storage, 'save') as save:
+                with self.assertRaises(PermissionDenied):
+                    upload_deal_file(deal_id=self.deal.pk, dealership_id=self.dealer.pk, actor=actor,
+                        title='Synthetic new', upload_key=uuid.uuid4(), pdf_bytes=file_scenarios.PDF_BYTES)
+                save.assert_not_called()
+            with self.subTest(archive_actor=actor.username), self.assertRaises(PermissionDenied):
+                change_deal_file_state(deal_id=self.deal.pk, dealership_id=self.dealer.pk,
+                    file_id=stored.pk, actor=actor, action='archive', reason='Synthetic review')
+        with override_settings(DEAL_FILES_DEMO_ENABLED=False), self.assertRaises(PermissionDenied):
+            change_deal_file_state(deal_id=self.deal.pk, dealership_id=self.dealer.pk,
+                file_id=stored.pk, actor=self.user, action='archive', reason='Synthetic review')
+        with override_settings(DEAL_FILES_DEMO_ENABLED=False), self.assertRaises(PermissionDenied):
+            upload_deal_file(deal_id=self.deal.pk, dealership_id=self.dealer.pk, actor=self.user,
+                title='Synthetic new', upload_key=uuid.uuid4(), pdf_bytes=file_scenarios.PDF_BYTES)
+        stored.refresh_from_db()
+        self.assertIsNone(stored.archived_at)
+        self.assertEqual(DealFile.objects.count(), 1)
+        self.assertEqual(DealFileEvent.objects.count(), original_events)
+
     def test_denied_get_and_head_never_open_storage(self):
         own = self.upload()
-        other = self.upload(deal_id=self.other_deal.pk, dealership_id=self.foreign.pk)
+        foreign_actor = get_user_model().objects.create_user(username='synthetic-foreign-owner')
+        Membership.objects.create(user=foreign_actor, dealership=self.foreign, role='owner')
+        other = self.upload(deal_id=self.other_deal.pk, dealership_id=self.foreign.pk, actor=foreign_actor)
         change_deal_file_state(deal_id=self.deal.pk, dealership_id=self.dealer.pk,
             file_id=own.pk, actor=self.user, action='archive', reason='Synthetic archive')
         with patch.object(self._deal_file_storage, 'open', side_effect=AssertionError('Unauthorized storage access')) as opened:

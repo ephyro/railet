@@ -2,6 +2,16 @@
 from django.db import migrations
 
 
+def restore_sqlite_guards(apps, schema_editor):
+    if schema_editor.connection.vendor == 'sqlite':
+        for operation in ('UPDATE', 'DELETE'):
+            schema_editor.execute(
+                f"CREATE TRIGGER IF NOT EXISTS demo_account_context_{operation.lower()} "
+                f"BEFORE {operation} ON finance_demoaccountcontext "
+                "BEGIN SELECT RAISE(ABORT, 'Saved account context is immutable'); END"
+            )
+
+
 def forwards(apps, schema_editor):
     if schema_editor.connection.vendor == 'postgresql':
         schema_editor.execute('''
@@ -31,7 +41,8 @@ def backwards(apps, schema_editor):
         schema_editor.execute('DROP TRIGGER demo_account_context_check ON finance_demoaccountcontext; DROP FUNCTION railet_demo_account_context_check(); DROP TRIGGER demo_account_context_immutable ON finance_demoaccountcontext;')
     elif schema_editor.connection.vendor == 'sqlite':
         for operation in ('update', 'delete'):
-            schema_editor.execute(f'DROP TRIGGER demo_account_context_{operation}')
+            # Reversing a later SQLite table rebuild may already have removed it.
+            schema_editor.execute(f'DROP TRIGGER IF EXISTS demo_account_context_{operation}')
 
 
 class Migration(migrations.Migration):

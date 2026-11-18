@@ -2,6 +2,9 @@
 
 Review date: October 27, 2026. Sources: owner-supplied saved DealerCenter Deal and BHPH Reports webpages, reviewed locally, and owner-pasted product catalog. These notes record independently described workflow observations only. No vendor source, assets, customer data, report rows, credentials or session material are included. Original captures remain private and must not enter source publication or repository history.
 
+The capture descriptions and proposed sequence are historical observations,
+not verified current vendor behavior or an assessment of the current Railet UI.
+
 ## What the captures show
 
 The deal page groups vehicle sale structure, parties/lienholder, financing terms and a summary, with separate notes, files, events, worksheet and post-sale areas. Visible amounts include price, cash received, trade-in, amount financed, monthly payment, finance charge and net profit. Its record status can identify a funding step. This is evidence of displayed UI concepts, not verification of their calculations or legal applicability.
@@ -12,7 +15,7 @@ The BHPH report builder exposes account status and owner filters, account inform
 
 1. Keep Deals focused on preparing a vehicle sale. Keep BHPH focused on an established customer's account and recorded payment history. Use clear section labels and direct links between related records.
 2. Account reporting is a significant BHPH workflow, not a decorative dashboard. Eventually let staff answer which account needs attention, why, the applicable date and which source transactions explain the amount.
-3. Reuse filtering and personal saved views for report definitions. Preserve understandable defaults and a compact records-first table. Report/export permissions and dealership isolation remain server enforced.
+3. Reuse filtering and personal saved views for report definitions. Preserve understandable defaults and a compact records-first table. Require server-enforced report/export permissions and dealership isolation.
 4. Never collapse principal, accrued interest, fees, deferred down payments, credits and amount due into one ambiguous balance. A report must identify the date basis and calculation version where relevant.
 5. Preserve the distinction between planned down payment, actual receipts, unapplied funds and settlement. Railet's current synthetic receipts remain wholly unapplied; they do not reduce principal.
 6. Avoid automatic emailed financial reports as a first step. Any future delivery needs explicit recipients, authorization, private delivery, redaction/retention decisions and audited configuration. None is enabled by this review.
@@ -22,7 +25,7 @@ The BHPH report builder exposes account status and owner filters, account inform
 - Continue testing the navigation and account workflow with dealership staff using synthetic records.
 - Improve the existing account/payment history and read-only payment register using information already authoritative in Railet. Keep synthetic account limitations visible.
 - Define account lifecycle, contractual schedules and allocation semantics before adding active/closed status, delinquency, total due or payoff reporting. Those are financial behaviors requiring current primary-source research, explicit controls, independent reference cases and the existing production reviews.
-- Then build saved account report views and authorized exports around verified account facts. A prototype must not guess missing financial amounts or infer delinquency from an illustrative schedule.
+- Then build saved account report views and authorized exports around verified account facts. A prototype must not guess missing financial amounts or present an illustrative schedule as contractual delinquency. The current opt-in monthly precomputed rehearsal can show explicitly labeled simulated past-due status; it is not a contractual delinquency determination or live collections instruction.
 
 This review introduces no regulated behavior and does not establish production readiness or add a new financial calculation.
 

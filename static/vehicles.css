@@ -23,3 +23,4 @@
 .deal-vehicle-identity > div { min-width: 0; }
 .deal-vehicle-identity .vehicle-thumb { width: 66px; height: 48px; flex-basis: 66px; }
 @media(max-width:520px) { .vehicle-thumb { width: 66px; height: 48px; flex-basis: 66px; } .vehicle-gallery { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); } }
+.recon-queue-link{font-size:13px;white-space:nowrap}

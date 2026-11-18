@@ -9,12 +9,16 @@ Railet's original community source is covered by MPL 2.0; see [LICENSE](LICENSE)
 | sqlparse (Django dependency) | BSD-3-Clause | https://github.com/andialbrecht/sqlparse |
 | psycopg and psycopg-binary | LGPL-3.0-only | https://github.com/psycopg/psycopg |
 | Pillow | MIT-CMU; bundled components have additional notices | https://github.com/python-pillow/Pillow |
+| cryptography | Apache-2.0 OR BSD-3-Clause | https://github.com/pyca/cryptography |
+| django-otp | Unlicense | https://github.com/django-otp/django-otp |
+| cffi (cryptography dependency) | MIT-0 in the installed 2.1.1 artifact; verify resolved versions | https://cffi.readthedocs.io/ |
+| pycparser (cffi dependency) | BSD-3-Clause | https://github.com/eliben/pycparser |
 | Gunicorn (optional staging) | MIT | https://github.com/benoitc/gunicorn |
 | WhiteNoise (optional staging) | MIT | https://github.com/evansd/whitenoise |
 
 `requirements.txt` and `requirements-staging.txt` declare version ranges. This source preview does not ship a reproducible production dependency lock or binary distribution. psycopg-binary/Pillow wheels can include native libraries with their own licenses; Python/PostgreSQL/Caddy/container base images and Docker tooling also carry separate licenses. Inspect the installed artifacts when packaging a distribution; this table does not replace their notices or LGPL obligations.
 
-The interface uses independently written local templates, CSS, JavaScript, and inline SVG. No private vendor captures, commercial form packs, or third-party illustration assets are included. The interface includes the Manrope font under SIL Open Font License 1.1; its license is retained at static/fonts/Manrope-OFL.txt. Railet and Ephyro names are project identifiers, not a grant of trademark rights.
+The application interface uses independently written local templates, CSS, JavaScript, and inline SVG. Private vendor captures and legacy assets exist in the working directory and are excluded from intended community packaging; their presence is not a grant of rights. Exclusion rules alone do not establish a clean release. See [current-tree release review](docs/PUBLIC_RELEASE_REVIEW.md). No commercial form pack is licensed by this notice. The interface includes the Manrope font under SIL Open Font License 1.1; its license is retained at static/fonts/Manrope-OFL.txt. Railet and Ephyro names are project identifiers, not a grant of trademark rights.
 
 
 Bundled font: Manrope, SIL Open Font License 1.1. Upstream: https://github.com/googlefonts/manrope. The font license applies to the font files; Railet interface source remains MPL 2.0.

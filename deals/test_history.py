@@ -56,5 +56,5 @@ class DraftHistoryTests(TestCase):
     def test_empty_and_invalid_pages_have_usable_results(self):
         self.assertEqual(self.client.get(self.url,{'page':'invalid'}).status_code,200)
         self.assertEqual(self.client.get(self.url,{'page':999}).context['page'].number,2)
-        self.deal.events.all().delete()
-        self.assertContains(self.client.get(self.url),'No saved history is available')
+        empty = DraftDeal.objects.create(dealership=self.dealer, vehicle=self.deal.vehicle, buyer=self.deal.buyer)
+        self.assertContains(self.client.get(reverse('deal_history', args=[empty.pk])), 'No saved history is available')

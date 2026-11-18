@@ -1,11 +1,17 @@
 <!-- SPDX-License-Identifier: MPL-2.0 -->
 # Private supporting deal files — development design
 
-Supporting files belong to the Documents module and reference the saved draft ID.
-They are not legal forms, required-document determinations, signed-document
-verification or immutable generated-deal snapshots. The original file bytes and
-hash are retained while the live deal's parties and vehicle may change. Use
-synthetic files only until production prerequisites are independently satisfied.
+Supporting files (`DealFile` / `DealFileEvent`) belong to the Documents module
+and reference the saved draft ID. (The Documents module also owns private
+synthetic vehicle vendor invoices in `VehicleInvoice` and unverified vehicle
+acquisition attachments in `VehicleAcquisitionFile`; see
+[vehicle work and costs](VEHICLE_WORK_AND_COSTS.md) and
+[vehicle acquisition files](VEHICLE_ACQUISITION_FILES.md).) They are not legal
+forms, required-document determinations, signed-document verification, proof of
+vehicle ownership, or immutable generated-deal snapshots. The original file
+bytes and hash are retained while the live deal's parties and vehicle may
+change. Use synthetic files only until production prerequisites are
+independently satisfied.
 
 Initial scope is PDFs only, stored privately with random server-selected names.
 The application discards the original filename and does not trust its extension or
@@ -17,13 +23,20 @@ type, nosniff and a sandbox policy, after membership/dealership authorization.
 Downloaded PDFs can still contain unsafe content; scanner/quarantine policy and
 safe client handling remain production prerequisites.
 
-All Documents routes are disabled unless DEAL_FILES_DEMO_ENABLED is true, which
-is derived from DEBUG. This is a synthetic rehearsal gate, not production approval.
-Owners/staff may upload, archive and restore. Viewers see/download active files
-only. Staff can also review archived files. No public storage URL, file replacement,
-permanent deletion, retention timer or purge task is introduced. Archiving retains
-bytes and events and does not satisfy or trigger any statutory destruction rule.
-The cap counts archived as well as visible files, so archiving is not a quota bypass.
+Deal supporting-file and vehicle acquisition-file routes require
+`DEAL_FILES_DEMO_ENABLED` (derived from `DEBUG`); demo packets use
+`DEMO_PACKETS_ENABLED`, and vehicle vendor invoices additionally require
+`RECON_DEMO_ENABLED`. These are synthetic rehearsal gates, not production
+approval. Owners/staff may upload, archive and restore. Viewers see/download
+active files only. Staff can also review archived files. No public storage URL,
+file replacement, permanent deletion, retention timer or purge task is
+introduced. Archiving retains bytes and events and does not satisfy or trigger
+any statutory destruction rule. The cap counts archived as well as visible
+files, so archiving is not a quota bypass. Active and archived `DealFile`,
+`VehicleInvoice`, and `VehicleAcquisitionFile` records and verified PDF bytes
+are also included in the owner-only synthetic documents/dealership export
+(`documents/export.py`, `core/dealership_export.py`), which remains a
+development export rather than a complete production backup.
 
 ## Source register and release gates
 
@@ -97,6 +110,9 @@ developer checks, not staff usability validation, legal review or production app
 
 The synthetic files and exact original bytes also survived a forced web-container
 recreation using the existing private-media volume. This establishes development
-persistence, not a backup restore drill. One extra synthetic fixture from a browser
-harness retry was archived with a reason rather than deleted; the demonstration
-Files page ends with one active and one archived PDF.
+persistence, not a backup restore drill. (A later disposable PostgreSQL and
+private-media restore exercise in [SYNTHETIC_RESTORE_EXERCISE.md](SYNTHETIC_RESTORE_EXERCISE.md)
+verified quiescent dump/restore of a synthetic PDF and database rows, which
+still does not establish live production backup/recovery.) One extra synthetic
+fixture from a browser harness retry was archived with a reason rather than
+deleted; the demonstration Files page ends with one active and one archived PDF.

@@ -26,6 +26,15 @@ def require_member(actor, dealership_id):
         raise PermissionDenied('Only dealership owners and staff can post synthetic entries.')
 
 
+def require_posting_member(actor, dealership_id):
+    """Recheck and lock authorization through commit after dealership/book locks."""
+    if not getattr(actor, 'is_authenticated', False) or not getattr(actor, 'pk', None):
+        raise PermissionDenied
+    if not Membership.objects.select_for_update().filter(user_id=actor.pk, user__is_active=True,
+            dealership_id=dealership_id, role__in=[Membership.Role.OWNER, Membership.Role.STAFF]).exists():
+        raise PermissionDenied('Only active dealership owners and staff can post synthetic entries.')
+
+
 def cents(value):
     if isinstance(value,(float,bool)):
         raise LedgerError('Enter an exact decimal amount, not a binary floating-point value.')
@@ -67,10 +76,11 @@ def effective(value,opening=None):
 
 @transaction.atomic
 def open_book(*,dealership_id,customer_id,actor,label,source_reference,opening_on,opening_amount,request_key):
-    require_demo();require_member(actor,dealership_id)
+    require_demo()
     amount=cents(opening_amount);request_key=key(request_key)
     label=text(label,'Demo label',100);source=text(source_reference,'Synthetic opening source',300);opening_on=effective(opening_on)
     Dealership.objects.select_for_update().get(pk=dealership_id)
+    require_posting_member(actor,dealership_id)
     if not Customer.objects.filter(pk=customer_id,dealership_id=dealership_id).exists():
         raise LedgerError('Choose a customer from this dealership.')
     prior=DemoBook.objects.filter(dealership_id=dealership_id,creation_key=request_key).first()
@@ -86,10 +96,12 @@ def open_book(*,dealership_id,customer_id,actor,label,source_reference,opening_o
 
 @transaction.atomic
 def record_receipt(*,dealership_id,book_id,actor,amount,effective_on,reason,request_key,payment_method=DemoPosting.PaymentMethod.UNSPECIFIED):
-    require_demo();require_member(actor,dealership_id)
+    require_demo()
     amount=cents(amount);reason=text(reason,'Synthetic receipt reference',300);request_key=key(request_key)
     if payment_method not in DemoPosting.PaymentMethod.values:raise LedgerError('Choose Cash, Check, Other or Not recorded as the payment method.')
+    Dealership.objects.select_for_update().get(pk=dealership_id)
     book=DemoBook.objects.select_for_update().get(pk=book_id,dealership_id=dealership_id,customer__dealership_id=dealership_id)
+    require_posting_member(actor,dealership_id)
     effective_on=effective(effective_on,book.opening_on)
     prior=book.postings.filter(request_key=request_key).first()
     if prior:
@@ -101,9 +113,11 @@ def record_receipt(*,dealership_id,book_id,actor,amount,effective_on,reason,requ
 
 @transaction.atomic
 def reverse_receipt(*,dealership_id,book_id,posting_id,actor,effective_on,reason,request_key):
-    require_demo();require_member(actor,dealership_id)
+    require_demo()
     reason=text(reason,'Correction reason',300);request_key=key(request_key)
+    Dealership.objects.select_for_update().get(pk=dealership_id)
     book=DemoBook.objects.select_for_update().get(pk=book_id,dealership_id=dealership_id,customer__dealership_id=dealership_id)
+    require_posting_member(actor,dealership_id)
     original=book.postings.get(pk=posting_id)
     effective_on=effective(effective_on,original.effective_on)
     prior=book.postings.filter(request_key=request_key).first()

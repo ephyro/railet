@@ -113,6 +113,22 @@ class TradeWorkflowTests(TestCase):
         duplicate.dealership=self.other;duplicate.save()
         self.assertEqual(self.intake().status_code,302)  # No cross-dealer VIN disclosure/block.
 
+    def test_intake_blocks_tab_wrapped_sold_vin_without_changing_history(self):
+        self.save()
+        duplicate = Vehicle.objects.create(dealership=self.dealer, stock_number='LEGACY-SOLD',
+            vin=' \tsynthetic-trade-001\t ', year=2012, make='Synthetic', model='Sold', status='sold')
+        before_events = list(DealEvent.objects.filter(deal=self.deal).order_by('pk').values_list('snapshot', flat=True))
+        response = self.intake()
+        self.assertContains(response, 'already in this dealership')
+        self.assertIsNone(self.trade().inventory_vehicle_id)
+        self.assertEqual(list(DealEvent.objects.filter(deal=self.deal).order_by('pk').values_list('snapshot', flat=True)), before_events)
+        self.assertFalse(AuditEvent.objects.filter(vehicle=duplicate).exists())
+        duplicate.refresh_from_db()
+        self.assertEqual(duplicate.vin, ' \tsynthetic-trade-001\t ')
+        duplicate.dealership = self.other
+        duplicate.save(update_fields=['dealership'])
+        self.assertEqual(self.intake().status_code, 302)
+
     def test_intake_ignores_forged_links_and_cross_dealer_routes_are_hidden(self):
         self.save(inventory_vehicle=self.vehicle.pk,deal=999999)
         self.assertIsNone(self.trade().inventory_vehicle_id)

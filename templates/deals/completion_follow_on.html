@@ -1,0 +1,12 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}{% load assets %}{% block title %}Review new synthetic draft{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% asset_url 'deal-completion.css' %}">{% endblock %}
+{% block content %}
+<section class="page-heading"><a href="{% url 'deal_completion' state.record.deal_id %}">Back to voided rehearsal</a><h1>Review new synthetic draft</h1><p>From voided Deal #{{ state.record.deal_id }} · {{ state.snapshot.vehicle.description }} · {{ state.snapshot.buyer.name }}</p></section>
+<section class="panel completion-record"><p>This creates a separate draft linked to the current vehicle and customer records. The original completion and packet stay unchanged. This is not a legal amendment, sale, contract, payment or financing decision.</p>
+<p>Current vehicle: {{ state.vehicle }} · Current buyer: {{ state.buyer }}{% if state.co_buyer %} · Current co-buyer: {{ state.co_buyer }}{% endif %}</p>
+<p>Deal type: {{ state.deal_type }}. Financing proposals, trade details, documents and follow-ups are not copied and must be entered and reviewed separately.</p>
+{% if state.money_notice %}<p role="status">{{ state.money_notice }}</p>{% else %}<p>Frozen worksheet figures will be copied as draft estimates. Review tax and all figures.</p>{% endif %}
+<dl>{% for name,amount in state.amounts.items %}<dt>{{ name }}</dt><dd>${{ amount }}</dd>{% endfor %}</dl>
+<form method="post">{% csrf_token %}{{ form.non_field_errors }}{{ form.preview_token }}<p>{{ form.reason.label_tag }} {{ form.reason }} {{ form.reason.errors }}</p><p>{{ form.confirmed }} {{ form.confirmed.label_tag }} {{ form.confirmed.errors }}</p><button class="button" type="submit">Create synthetic draft</button> <a href="{% url 'deal_completion' state.record.deal_id %}">Cancel</a></form></section>
+{% endblock %}

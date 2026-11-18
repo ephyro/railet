@@ -1,5 +1,9 @@
 # SPDX-License-Identifier: MPL-2.0
 from functools import wraps
+import hashlib
+from io import BytesIO
+import posixpath
+from pathlib import Path, PurePosixPath
 
 from django.conf import settings
 from django.contrib import messages
@@ -17,18 +21,19 @@ from django.http import (
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
-from core.access import context, member_view, require_editor
+from core.access import authorized_private_read, context, member_view, require_editor
 from deals.models import DraftDeal
 
 from .forms import DealFileActionForm, SupportingFileUploadForm
-from .models import DealFile, DealFileEvent
-from .services import FileWorkflowError, UploadKeyConflict, change_deal_file_state, upload_deal_file
+from .models import DealFile, DealFileEvent, VehicleAcquisitionFile, VehicleInvoice
+from .services import MAX_FILE_BYTES, FileWorkflowError, UploadKeyConflict, change_deal_file_state, upload_deal_file
 
 
 def private_no_store(view):
     """Apply private no-store headers even to auth redirects and scoped 404/403s."""
     @wraps(view)
     def wrapped(request, *args, **kwargs):
+        request._railet_private_response = True
         if not getattr(settings, "DEAL_FILES_DEMO_ENABLED", False):
             response = HttpResponseNotFound()
             response["Cache-Control"] = "private, no-store"
@@ -265,8 +270,37 @@ def _set_download_headers(response, filename, byte_size):
     return response
 
 
+def _check_private_reference(record, dealership_id):
+    """Reject malformed or cross-dealership storage references before opening."""
+    types = {
+        DealFile: ("deal-files", "deal__dealership_id"),
+        VehicleInvoice: ("vehicle-invoices", "vehicle__dealership_id"),
+        VehicleAcquisitionFile: ("vehicle-acquisition", "vehicle__dealership_id"),
+    }
+    prefix, scope = types[type(record)]
+    name = record.blob.name or ""
+    path = PurePosixPath(name)
+    if (not name or "\\" in name or str(path) != name or path.is_absolute()
+            or len(path.parts) != 2 or path.parts[0] != prefix or ".." in path.parts):
+        raise Http404
+    for foreign in type(record).objects.exclude(**{scope: dealership_id}).values_list("blob", flat=True).iterator(chunk_size=1000):
+        if foreign and posixpath.normpath(foreign) == name:
+            raise Http404
+    try:
+        storage = record.blob.storage
+        root = Path(storage.location)
+        raw = Path(storage.path(name))
+        if root.is_symlink() or raw.is_symlink() or raw.parent.is_symlink():
+            raise Http404
+        if not raw.resolve(strict=True).is_relative_to(root.resolve(strict=True)):
+            raise Http404
+    except (OSError, ValueError):
+        raise Http404
+
+
 @private_no_store
 @member_view
+@authorized_private_read
 def file_download(request, pk, file_pk):
     _gate_closed()
     if request.method not in ("GET", "HEAD"):
@@ -287,10 +321,17 @@ def file_download(request, pk, file_pk):
             deal_file = get_object_or_404(files, pk=file_pk)
 
             # Authorization and active/archive checks above precede any storage access.
+            _check_private_reference(deal_file, request.member.dealership_id)
             try:
                 opened_file = deal_file.blob.open("rb")
-            except FileNotFoundError as error:
+                data = opened_file.read(MAX_FILE_BYTES + 1)
+            except OSError as error:
                 raise Http404 from error
+            opened_file.close()
+            opened_file = None
+            if len(data) > MAX_FILE_BYTES or len(data) != deal_file.byte_size or hashlib.sha256(data).hexdigest() != deal_file.sha256:
+                return HttpResponse("Supporting file integrity check failed. Contact your administrator.", status=409, content_type="text/plain")
+            opened_file = BytesIO(data)
 
             DealFileEvent.objects.create(
                 file=deal_file,

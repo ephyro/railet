@@ -1,12 +1,12 @@
 # Debian staging VM
 
-Status: configuration prepared; no VM has been created or deployed by the agent. Synthetic data only. This is a rehearsal environment, not approval for production use. MFA, encryption-at-rest/key management, operational recovery tests, and legal release gates remain outstanding.
+Status: historical configuration prepared; this document records no completed staging deployment. November 13, 2026 review compared the staging Compose file, Dockerfile, Caddyfile, secret initializer, settings and seed command without building or deploying them. Synthetic data only. This is a rehearsal environment, not approval for production use. MFA, encryption-at-rest/key management, operational recovery tests, and legal release gates remain outstanding.
 
 ## VM configuration
 
 Use Debian stable from an official installation image, with 2 vCPUs, 4 GB RAM, and 30 GB disk as a starting development allocation. These are planning estimates, not measured requirements. Install a minimal server with OpenSSH, a non-root operator account, and security updates. Use NAT networking, not a public address or router port forwarding. Keep SSH limited to the host/private network; don't expose PostgreSQL or Gunicorn.
 
-The tool environment has QEMU but no accessible /dev/kvm or libvirt tools. Create the VM through your Gentoo desktop VM manager; hardware virtualization availability must be verified on the host. Don't rebuild the host kernel blindly. A snapshot before deployment is useful, but doesn't replace a database backup.
+The original preparation environment had QEMU but no accessible /dev/kvm or libvirt tools; this review did not recheck host capabilities. Create the VM through your Gentoo desktop VM manager; hardware virtualization availability must be verified on the host. Don't rebuild the host kernel blindly. A snapshot before deployment is useful, but doesn't replace a database backup.
 
 Install Docker Engine and the Compose plugin inside Debian following the official instructions: https://docs.docker.com/engine/install/debian/ . Use sudo for Docker unless deliberately configuring rootless operation. Don't add the operator to the root-equivalent Docker group by default.
 
@@ -15,6 +15,11 @@ Copy the project to ~/railet inside the VM using an explicit allowlist (applicat
 ## Initial deployment (inside VM)
 
 From ~/railet:
+
+The initializer creates `.env.staging` exclusively with mode 0600 and refuses
+to replace an existing file. Keep existing secrets; regenerating a password
+does not update an initialized PostgreSQL volume. Use this standalone Compose
+file, never merge it with development `compose.yaml`.
 
 ```sh
 python3 deploy/staging/init_env.py
@@ -30,16 +35,16 @@ sudo docker compose --env-file .env.staging -f compose.staging.yaml run --rm -e 
 sudo docker compose --env-file .env.staging -f compose.staging.yaml up -d
 ```
 
-The demo command still requires a 12-character password and interactive terminal input. A VM does not fix that prompt; if input fails, diagnose separately. Never put passwords in command arguments or shared transcripts.
+The demo command requires at least 12 characters and prompts by default. It also supports `--password-file /path/inside/container`: provide a separately prepared private file readable by the container user, with no group/other permissions, through a temporary read-only mount. The host path is not automatically available inside the container. Never put password contents in arguments or transcripts. Seeding refuses an existing username and never updates that account; do not remove existing data to rerun it.
 
-Only the proxy publishes a port, on the VM's loopback. The stack uses separate database, private-photo, and Caddy volumes and a separate Compose project from development. Private photos are mounted at /app/private-media and are served only through authorized application routes. Gunicorn serves the app; WhiteNoise serves collected static files; Caddy terminates local HTTPS. Debug stays disabled. Application code is baked into the image; deploy code changes with a rebuild.
+Only the proxy publishes a port, on the VM's loopback. The stack uses separate database, private-photo, and Caddy volumes and a separate Compose project from development. Private uploads (photos and supporting PDFs) are mounted at /app/private-media and are served only through authorized application routes. Gunicorn serves the app; WhiteNoise serves collected static files; Caddy terminates local HTTPS. Debug stays disabled. Consequently the DEBUG-derived gates disable supporting-file, packet, ledger/servicing, reconditioning, customer-activity, completion, tax-estimate and dealership-export rehearsals; this is not the full development walkthrough. Feedback intake itself has no DEBUG gate, although its export component does. Do not enable DEBUG on the staging web service to bypass these boundaries. Application code is baked into the image; deploy code changes with a rebuild.
 
 ## Access from Gentoo
 
 Keep the SSH session running (replace operator and VM_IP with your actual values):
 
 ```sh
-ssh -N -L 8443:127.0.0.1:8443 operator@VM_IP
+ssh -o ExitOnForwardFailure=yes -N -L 127.0.0.1:8443:127.0.0.1:8443 operator@VM_IP
 ```
 
 Open https://localhost:8443 on Gentoo. Caddy uses a private staging CA, so browsers won't trust its certificate initially. On the VM export ONLY its public root certificate:
@@ -74,8 +79,12 @@ Create a restricted synthetic staging database backup inside the VM:
 ```sh
 mkdir -p backups
 chmod 700 backups
-(umask 077; sudo docker compose --env-file .env.staging -f compose.staging.yaml exec -T db pg_dump -U railet -d railet -Fc > backups/staging.dump)
+(umask 077; set -C; sudo docker compose --env-file .env.staging -f compose.staging.yaml exec -T db pg_dump -U railet -d railet -Fc > backups/staging.dump)
 ```
+
+The no-clobber setting refuses an existing dump path; choose a new backup name
+and use that same name below. A failed dump may leave a partial file; do not
+treat file existence as verification or overwrite a known-good copy.
 
 Restore into a separate scratch database, never overwrite the active database for a test:
 
@@ -84,9 +93,9 @@ sudo docker compose --env-file .env.staging -f compose.staging.yaml exec -T db c
 sudo docker compose --env-file .env.staging -f compose.staging.yaml exec -T db pg_restore -U railet -d railet_restore_check --exit-on-error < backups/staging.dump
 ```
 
-The database dump above does not contain uploaded photos. A complete backup must capture the database and staging_media volume consistently while application writes are stopped, protect both as private data, and restore both before checking authenticated photo downloads. A database-only restore is not a complete photo restore.
+The database dump above does not contain private uploads. A complete backup must capture the database and `staging_media` volume consistently while application writes are stopped, protect both as private data, and restore both before checking authorized downloads. Caddy CA material and configuration need separate protected recovery handling; copying its public root is not a CA backup. Debug-off staging cannot exercise demo-gated upload/download flows, so verify those bytes/routes in a separately isolated synthetic development restore. A database-only restore is not complete recovery.
 
-Verify vehicle, membership, and audit counts against the source using read-only queries, then drop the scratch database deliberately. Rehearse VM reboot and container restart, login persistence, and an upgrade with a pre-upgrade backup. Migration rollback requires an explicit plan; a stale VM snapshot alone can lose later writes. Avoid docker compose down -v: it deletes volumes, including CA material, the database, and uploaded photos.
+Verify vehicle, membership, and audit counts against the source using read-only queries. Retain the scratch database until the comparison is reviewed; any later cleanup must identify that scratch target explicitly. Rehearse VM reboot and container restart, login persistence, and an upgrade with a pre-upgrade backup. Migration rollback requires an explicit plan; a stale VM snapshot alone can lose later writes. Avoid docker compose down -v: it deletes volumes, including CA material, the database, and uploaded photos.
 
 ## Remaining verification
 

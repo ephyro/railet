@@ -5,7 +5,8 @@ from django.shortcuts import get_object_or_404, render, redirect
 from django.views.decorators.http import require_http_methods
 from core.access import member_view, context, require_editor
 from deals.models import DraftDeal
-from deals.account_context import account_draft_snapshot, eligible_account_drafts
+from deals.account_context import account_draft_snapshot, eligible_account_drafts, completed_account_snapshot
+from django.core.exceptions import ValidationError
 from .forms import ReceiptForm
 from .views import demo_page, money
 from .services import cents, LedgerError
@@ -18,6 +19,7 @@ SALT = 'railet.demo-draft-opening.v1'
 class DraftOpeningForm(ReceiptForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields.pop('payment_method')
         self.fields['amount'].label = 'Synthetic opening principal (USD)'
         self.fields['reference'].label = 'Opening-balance source (synthetic only)'
         self.fields['reference'].help_text = 'Enter the invented reference you used for this figure. The draft balance is not copied into debt.'
@@ -35,6 +37,13 @@ def opening(request, pk):
     existing = draft_account(dealership_id=request.member.dealership_id, deal_id=deal.pk)
     if request.method == 'GET' and existing:
         return redirect('bhph_account', pk=existing.book_id)
+    completed = hasattr(deal, 'demo_completion')
+    frozen = None
+    if completed:
+        try:
+            frozen = completed_account_snapshot(deal)
+        except (ValidationError, KeyError, TypeError, AttributeError):
+            return render(request, 'finance/opening_invalid.html', context(request, deal=deal), status=409)
     if 'preview_token' in request.POST:
         try:
             payload = signing.loads(request.POST['preview_token'], salt=SALT, max_age=1800)
@@ -58,12 +67,15 @@ def opening(request, pk):
             form.add_error(None, error.messages)
             return render(request, 'finance/draft_opening.html', context(request, deal=deal, form=form, existing=existing), status=409)
         return redirect('bhph_account', pk=book.pk)
-    if not eligible_account_drafts(dealership_id=request.member.dealership_id, customer_id=deal.buyer_id).filter(pk=deal.pk).exists():
+    if not completed and not eligible_account_drafts(dealership_id=request.member.dealership_id, customer_id=deal.buyer_id).filter(pk=deal.pk).exists():
         return render(request, 'finance/opening_invalid.html', context(request, deal=deal), status=409)
     form=DraftOpeningForm(request.POST if request.method=='POST' else None, dealership=request.member.dealership)
     if request.method=='POST' and form.is_valid():
         data=form.cleaned_data
-        snapshot=account_draft_snapshot(deal)
+        try:
+            snapshot=frozen if completed else account_draft_snapshot(deal)
+        except (ValidationError, KeyError, TypeError, AttributeError):
+            return render(request,'finance/opening_invalid.html',context(request,deal=deal),status=409)
         values={name: (value.isoformat() if hasattr(value,'isoformat') else str(value))
                 for name,value in data.items() if name!='synthetic_confirmed'}
         values['synthetic_confirmed']=True
@@ -71,4 +83,4 @@ def opening(request, pk):
                             'deal':deal.pk,'digest':result_digest(snapshot),'data':values},salt=SALT)
         return render(request,'finance/draft_opening_preview.html',context(request,deal=deal,snapshot=snapshot,
             token=token,amount=money(cents(data['amount'])),opening_on=data['effective_on'],reference=data['reference']))
-    return render(request,'finance/draft_opening.html',context(request,deal=deal,form=form,existing=existing))
+    return render(request,'finance/draft_opening.html',context(request,deal=deal,form=form,existing=existing,completed=completed,frozen=frozen))

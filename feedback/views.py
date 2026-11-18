@@ -68,6 +68,11 @@ def report_confirm(request):
     with transaction.atomic():
         # Serializes duplicate confirms; no report quota or external network call.
         Dealership.objects.select_for_update().get(pk=request.member.dealership_id)
+        if not Membership.objects.select_for_update().filter(
+            user_id=request.user.pk, user__is_active=True,
+            dealership_id=request.member.dealership_id, role__in=Membership.Role.values,
+        ).exists():
+            raise PermissionDenied
         report, created = FeedbackReport.objects.get_or_create(
             dealership=request.member.dealership, author=request.user,
             submission_key=data['submission_key'],

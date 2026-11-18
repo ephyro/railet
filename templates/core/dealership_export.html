@@ -1,0 +1,15 @@
+{# SPDX-License-Identifier: MPL-2.0 #}
+{% extends 'base.html' %}
+{% block title %}Export dealership data{% endblock %}
+{% block content %}
+<p><a href="{% url 'customers' %}">Back to customers</a></p>
+<h1>Export dealership data</h1>
+<section class="panel">
+  <p class="notice"><strong>Synthetic workspace only.</strong> Use invented data only.</p>
+  <p>The package includes dealership and membership information, customers and history, inventory and photos, deals, documents and invoices, synthetic finance records, and dealership feedback. Notes, feedback and document files are unredacted.</p>
+  <p>Passwords, credentials, sessions, personal saved views and user profiles are excluded. User IDs and names identify record authors. Free text and uploaded files may contain sensitive information.</p>
+  <p><strong>This is not a complete backup.</strong> Database and file reads are not guaranteed to represent a coordinated point-in-time snapshot. There is no import or restore function; stop changes during preparation if consistency matters.</p>
+  <p>The ZIP is not encrypted. Store it privately. Preparation records your account, dealership, time, format, file size and hash without the contents; that record does not prove delivery.</p>
+  <form method="post" action="{% url 'dealership_export_download' %}">{% csrf_token %}<input type="hidden" name="export_token" value="{{ export_token }}"><button class="button" type="submit">Download synthetic dealership ZIP</button></form>
+</section>
+{% endblock %}
