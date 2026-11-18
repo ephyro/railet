@@ -289,23 +289,23 @@ security/retention/storage gates, implementation and verified results.
 
 ### Private local feedback (development)
 
-The Feedback module now provides explicit preview-before-save intake and numbered local reports, scoped to their author and dealership owners. It does not transmit reports, collect diagnostics, attach files, or automatically redact free text. Submissions use signed actor/dealership-bound previews and retry protection. See [FEEDBACK.md](FEEDBACK.md) for permissions, privacy/retention limits, checks, and the outstanding PostgreSQL/VM integration verification. No live integration or production gate is enabled.
+The Feedback module now provides explicit preview-before-save intake and numbered local reports, scoped to their author and dealership owners. It does not transmit reports, collect diagnostics, attach files, or automatically redact free text. Submissions use signed actor/dealership-bound previews and retry protection. See [FEEDBACK.md](FEEDBACK.md) for permissions, privacy/retention limits, checks, and the integration work outstanding at that slice. No live integration or production gate is enabled.
 
 ### Frozen demonstration summaries (development)
 
-Saved drafts can now produce retained synthetic HTML summaries with frozen parties, vehicle/title/mileage, worksheet estimates, active trade, selected proposal, and human completeness reminders. JSON source snapshots and exact HTML bytes are stored with version/hash/provenance; later source edits do not regenerate them. This is not legal paperwork, a reviewed Florida form pack, or deal finalization. No signing, ledger, loan, payment or production workflow is enabled. See [DEMO_PACKETS.md](DEMO_PACKETS.md) for integrity/access boundaries and remaining PostgreSQL/VM verification.
+Saved drafts can now produce retained synthetic HTML summaries with frozen parties, vehicle/title/mileage, worksheet estimates, active trade, selected proposal, and human completeness reminders. JSON source snapshots and exact HTML bytes are stored with version/hash/provenance; later source edits do not regenerate them. This is not legal paperwork, a reviewed Florida form pack, or deal finalization. No signing, ledger, loan, payment or production workflow is enabled. See [DEMO_PACKETS.md](DEMO_PACKETS.md) for integrity/access boundaries and the verification scope at that slice.
 
 ### Draft archive/restore (development)
 
-Drafts can now be put aside and restored with reasons, revision checks and preserved event history. Archived drafts stay readable; worksheet/party/trade edits require restoration. No inventory status, money, customer profile, supporting-file lifecycle or saved packet is altered. Draft event schema 4 records archive metadata; demo packet template v2 explicitly captures active/archived state while existing artifacts remain unchanged. See [DRAFT_ARCHIVING.md](DRAFT_ARCHIVING.md) for verification and pending VM/PostgreSQL integration.
+Drafts can now be put aside and restored with reasons, revision checks and preserved event history. Archived drafts stay readable; worksheet/party/trade edits require restoration. No inventory status, money, customer profile, supporting-file lifecycle or saved packet is altered. Draft event schema 4 records archive metadata; demo packet template v2 explicitly captures active/archived state while existing artifacts remain unchanged. See [DRAFT_ARCHIVING.md](DRAFT_ARCHIVING.md) for the verification scope at that slice.
 
 ### Internal deal follow-ups (development)
 
-Saved deals now have assignable internal tasks with optional dates, completion/reopening and retained event history. Home shows the signed-in account’s open reminders; the full list is paginated and scoped by dealership. These are not legal deadlines, automated customer communications or collection actions. See [DEAL_FOLLOWUPS.md](DEAL_FOLLOWUPS.md) for authorization, concurrency boundaries, tests and pending PostgreSQL/VM verification.
+Saved deals now have assignable internal tasks with optional dates, completion/reopening and retained event history. Home shows the signed-in account’s open reminders; the full list is paginated and scoped by dealership. These are not legal deadlines, automated customer communications or collection actions. See [DEAL_FOLLOWUPS.md](DEAL_FOLLOWUPS.md) for authorization, concurrency boundaries, tests and the verification scope at that slice.
 
 ### PostgreSQL integration and synthetic ledger foundation
 
-An isolated private-socket PostgreSQL 17.11 developer instance now applies all current migrations and passes the 237-test full suite with no skips, including new workflow and ledger concurrency checks. Browser integration and a separate synthetic database/private-file restore exercise passed. The original offline VM disk was not modified; its existing data upgrade is not represented as verified. See [POSTGRES_INTEGRATION.md](POSTGRES_INTEGRATION.md).
+In October 2026, an isolated private-socket PostgreSQL 17.11 developer instance applied the migrations present at that slice and passed all 237 tests without skips, including workflow and ledger concurrency checks. Browser integration and a separate synthetic database/private-file restore exercise passed. The original offline VM disk was not modified; its existing data upgrade is not represented as verified. See [POSTGRES_INTEGRATION.md](POSTGRES_INTEGRATION.md).
 
 The Community finance module now rehearses provenance-backed synthetic opening balances, structurally balanced append-only integer-cent postings, fully unapplied manual receipts, exact linked full receipt reversals and aggregate reconciliation. Signed posting previews, scoped permissions, retry protection and database guards are implemented. No contractual allocations, interest/APR, fees, loan creation, settlement, real money or collections are enabled. Current primary-source review and unresolved effective-date/applicability/professional-review gates are recorded in [LEDGER_FOUNDATION.md](LEDGER_FOUNDATION.md).
 
@@ -389,8 +389,7 @@ are blocked afterwards; shared profile edits preserve historical facts. Signed
 stale-preview protection, serialized/idempotent confirmation, transactional audit
 and PostgreSQL/SQLite freeze guards are implemented. No vehicle sale, legal
 finalization, signing, loan, financial posting, retention policy or production gate
-is introduced. Existing BHPH books remain accessible; a new account from a completed
-rehearsal awaits a separately reviewed frozen-record handoff. See
+was introduced by the October 30 completion rehearsal. See
 [DEMO_COMPLETION.md](DEMO_COMPLETION.md) for internal checks, boundaries and evidence.
 
 Completed BHPH rehearsals can open a new synthetic account using verified frozen
@@ -416,9 +415,10 @@ messaging is authorized by this planning note. Synthetic data only.
 Inventory reporting development: a synthetic, dealership-scoped investment
 report lists recorded cost, asking price and their difference by inventory status.
 Existing cost adjustments are reflected. The difference excludes overhead and
-unrecorded costs and is not accounting profit. Acquisition dates are not stored;
-no aging is inferred from last-updated timestamps. Report exports and sales/
-servicing reports remain outstanding. Developer checks include authorization,
+unrecorded costs and is not accounting profit. The report calculates age from the
+optional acquisition date. Missing or future dates leave age unknown. A filtered
+CSV export includes acquisition date and age. Broader sales and servicing
+reporting remains a separate roadmap item. Developer checks include authorization,
 filtering and independent cost/reversal reference values; no production gate changes.
 
 Customer follow-up management: synthetic follow-ups and appointments now support

@@ -717,6 +717,8 @@ professional review.
   A November 18 source check of the development and PostgreSQL integration
   guides clarified how to switch database modes and verify that the integration
   test database name is unused before running tests.
+  The product plan was checked against current handoff and inventory reporting
+  code. Historical PostgreSQL counts now identify their original test run.
   On November 9, source and template review also covered exactly
   `docs/ACCOUNT_SEARCH.md`, `docs/CUSTOMER_ADDRESSES.md`,
   `docs/CUSTOMERS_AND_DEALS.md`, `docs/DEAL_FOLLOWUPS.md`,

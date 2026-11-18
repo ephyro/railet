@@ -15,7 +15,7 @@ class ResearchInventoryTests(SimpleTestCase):
         self.assertTrue(all(item.source.startswith('https://') and item.rights and item.revision for item in REFERENCES))
 
     def test_buyers_guide_is_a_research_topic_for_all_deal_types(self):
-        self.assertEqual(REGISTRY_VERSION, 'fl-research-2026-11-10-v6')
+        self.assertEqual(REGISTRY_VERSION, 'fl-research-2026-11-18-v7')
         for deal_type in ('Cash', 'Buy here, pay here', 'Not chosen', 'Outside financing'):
             with self.subTest(deal_type=deal_type):
                 entries = {item['reference'].key: item for item in research_inventory(self.snapshot(deal_type))}
@@ -30,8 +30,10 @@ class ResearchInventoryTests(SimpleTestCase):
             with self.subTest(deal_type=deal_type):
                 entry = next(item for item in research_inventory(self.snapshot(deal_type))
                              if item['reference'].key == 'title')
-                self.assertIn('current revision remains unconfirmed', entry['reference'].revision)
+                self.assertIn('HSMV 82040 MV rev. 07/23', entry['reference'].revision)
+                self.assertIn('directly downloaded and extracted 2026-11-18', entry['reference'].revision)
                 self.assertIn('reproduction', entry['reference'].rights)
+                self.assertIn('filing acceptance unverified', entry['reference'].rights)
                 self.assertIn('no automatic determination', entry['reference'].applicability)
                 self.assertIn('Title brand verification', entry['missing'])
                 self.assertIn('VIN', entry['missing'])
@@ -83,9 +85,15 @@ class ResearchInventoryTests(SimpleTestCase):
                     self.assertNotIn('Odometer reading', entries[key]['missing'])
                 self.assertIn('secure stock', entries['dealer-reassignment']['reference'].rights)
                 self.assertIn('Part C', entries['secure-odometer-poa']['reference'].review)
-                for key in ('odometer', 'dealer-reassignment', 'secure-odometer-poa'):
-                    self.assertIn('indexed', entries[key]['reference'].revision.lower())
-                    self.assertIn('blocked', entries[key]['reference'].revision.lower())
+                for key, expected in (
+                    ('odometer', '82993 rev. 11/11'),
+                    ('dealer-reassignment', '82994 rev. 04/14. Procedure TL-09 rev. 06/2026, effective immediately'),
+                    ('secure-odometer-poa', 'TL-02 rev. 03/25, effective immediately'),
+                ):
+                    revision = entries[key]['reference'].revision
+                    self.assertIn(expected, revision)
+                    self.assertIn('directly downloaded and extracted 2026-11-18', revision)
+                self.assertIn('82995 form revision remains unverified', entries['secure-odometer-poa']['reference'].revision)
         entries = {item['reference'].key: item for item in research_inventory({})}
         for key in ('odometer', 'dealer-reassignment', 'secure-odometer-poa'):
             self.assertIn('Odometer reading', entries[key]['missing'])
